@@ -121,9 +121,15 @@ interface CompetitorData {
     distance: number;
     rating: number;
     trend?: 'up' | 'down' | 'stable';
+    lastUpdated?: Date;
+    roomType?: string;
   }>;
   marketPosition: 'premium' | 'competitive' | 'value';
   priceAdvantage: number;
+  averageRate?: number;
+  lowestRate?: number;
+  highestRate?: number;
+  marketShare?: number;
 }
 
 interface ProductData {
@@ -1249,15 +1255,69 @@ export default function RevenuePage() {
 
   // Enhanced Event Tooltip Component
   const EventTooltip = ({ event, position }: { event: Event; position: { x: number; y: number } }) => {
+    // Enhanced positioning logic
+    const calculateOptimalPosition = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      const tooltipWidth = 320; // tooltip max width
+      const tooltipHeight = 280; // estimated height
+      const spacing = 8; // consistent 8px spacing
+      
+      let x = position.x;
+      let y = position.y;
+      let placement = 'right';
+      
+      // Default to right placement with center alignment
+      if (x + spacing + tooltipWidth <= viewportWidth - 20) {
+        // Sufficient space on right
+        x = x + spacing;
+        placement = 'right';
+      } else {
+        // Flip to left
+        x = x - spacing - tooltipWidth;
+        placement = 'left';
+        // Ensure it doesn't go off left edge
+        if (x < 20) {
+          x = 20;
+          placement = 'top'; // fallback to top if needed
+        }
+      }
+      
+      // Center vertically relative to trigger
+      y = y - (tooltipHeight / 2);
+      
+      // Ensure tooltip stays within viewport bounds
+      if (y < 20) {
+        y = 20;
+      } else if (y + tooltipHeight > viewportHeight - 20) {
+        y = viewportHeight - tooltipHeight - 20;
+      }
+      
+      return { x, y, placement };
+    };
+
+    const { x, y, placement } = calculateOptimalPosition();
+    
     return (
       <div 
         className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 max-w-sm"
         style={{ 
-          left: position.x + 10, 
-          top: position.y - 10,
-          transform: 'translateY(-100%)'
+          left: `${x}px`, 
+          top: `${y}px`
         }}
       >
+        {/* Tooltip Arrow */}
+        {placement === 'right' && (
+          <div className="absolute left-0 top-1/2 transform -translate-x-full -translate-y-1/2">
+            <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[8px] border-r-white dark:border-r-gray-800"></div>
+          </div>
+        )}
+        {placement === 'left' && (
+          <div className="absolute right-0 top-1/2 transform translate-x-full -translate-y-1/2">
+            <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[8px] border-l-white dark:border-l-gray-800"></div>
+          </div>
+        )}
+        
         <div className="flex items-center gap-2 mb-2">
           <div className={`w-3 h-3 rounded-full ${
             event.impact === 'high' ? 'bg-red-500' :
@@ -1296,6 +1356,66 @@ export default function RevenuePage() {
   const RichTooltip = ({ tooltip }: { tooltip: typeof richTooltip }) => {
     if (!tooltip) return null;
 
+    // Calculate position to keep tooltip within viewport
+    const calculatePosition = () => {
+      const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
+      
+      // Dynamic tooltip width based on content type
+      const getTooltipWidth = () => {
+        switch (tooltip.type) {
+          case 'inventory_analysis':
+            return Math.min(420, viewportWidth * 0.9); // Max 420px or 90% viewport
+          case 'competitor':
+            return Math.min(350, viewportWidth * 0.85); // Max 350px or 85% viewport
+          case 'ai':
+            return Math.min(380, viewportWidth * 0.85); // Max 380px or 85% viewport
+          case 'event':
+            return Math.min(360, viewportWidth * 0.85); // Max 360px or 85% viewport
+          default:
+            return Math.min(320, viewportWidth * 0.8); // Default width
+        }
+      };
+      
+      const tooltipWidth = getTooltipWidth();
+      const tooltipHeight = 450; // estimated height
+      const spacing = 8; // consistent 8px spacing
+      
+      let x = tooltip.position.x;
+      let y = tooltip.position.y;
+      let placement = 'right';
+      
+      // Default to right placement with center alignment
+      if (x + spacing + tooltipWidth <= viewportWidth - 20) {
+        // Sufficient space on right
+        x = x + spacing;
+        placement = 'right';
+      } else {
+        // Flip to left
+        x = x - spacing - tooltipWidth;
+        placement = 'left';
+        // Ensure it doesn't go off left edge
+        if (x < 20) {
+          x = 20;
+          placement = 'top'; // fallback to top if needed
+        }
+      }
+      
+      // Center vertically relative to trigger
+      y = y - (tooltipHeight / 2);
+      
+      // Ensure tooltip stays within viewport bounds
+      if (y < 20) {
+        y = 20;
+      } else if (y + tooltipHeight > viewportHeight - 20) {
+        y = viewportHeight - tooltipHeight - 20;
+      }
+      
+      return { x, y, placement, width: tooltipWidth };
+    };
+
+    const position = calculatePosition();
+
     const renderTooltipContent = () => {
       if (!tooltip) return null;
 
@@ -1309,8 +1429,8 @@ export default function RevenuePage() {
                 <div className="w-8 h-8 bg-gradient-to-br from-orange-400 to-red-500 rounded-lg flex items-center justify-center">
                   <CalendarIcon className="w-4 h-4 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white">Event Impact Analysis</h3>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-sm font-semibold text-white truncate">Event Impact Analysis</h3>
                   <p className="text-xs text-gray-300">{events.length} event{events.length !== 1 ? 's' : ''} detected</p>
                 </div>
               </div>
@@ -1320,11 +1440,11 @@ export default function RevenuePage() {
                 {events.map((event, index) => (
                   <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                     <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium text-white mb-1">{event.title}</h4>
-                        <p className="text-xs text-gray-300">{event.venue}</p>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <h4 className="text-sm font-medium text-white mb-1 break-words">{event.title}</h4>
+                        <p className="text-xs text-gray-300 break-words">{event.venue}</p>
                       </div>
-                      <span className={`text-xs px-2 py-1 rounded-full font-medium ml-2 ${
+                      <span className={`text-xs px-2 py-1 rounded-full font-medium flex-shrink-0 ${
                         event.impact === 'high' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg' :
                         event.impact === 'medium' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg' :
                         'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
@@ -1383,7 +1503,7 @@ export default function RevenuePage() {
                 <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
                   <Bot className="w-4 h-4 text-white" />
                 </div>
-                <div>
+                <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-white">AI Revenue Insights</h3>
                   <p className="text-xs text-gray-300">Intelligent recommendations for optimization</p>
                 </div>
@@ -1394,11 +1514,11 @@ export default function RevenuePage() {
                 {aiInsights.slice(0, 2).map((insight, index) => (
                   <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                     <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium text-white mb-1">{insight.title}</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed">{insight.message}</p>
+                      <div className="flex-1 min-w-0 pr-2">
+                        <h4 className="text-sm font-medium text-white mb-1 break-words">{insight.title}</h4>
+                        <p className="text-xs text-gray-300 leading-relaxed break-words">{insight.message}</p>
                       </div>
-                      <div className="flex flex-col items-end gap-1">
+                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
                         <span className={`text-xs px-2 py-1 rounded-full font-medium ${
                           insight.confidence >= 80 ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg' :
                           insight.confidence >= 60 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg' :
@@ -1430,9 +1550,9 @@ export default function RevenuePage() {
                       <div className="bg-blue-500/10 rounded-md p-2 border border-blue-500/20">
                         <div className="flex items-start gap-2">
                           <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                          <div>
+                          <div className="flex-1 min-w-0">
                             <div className="text-xs font-medium text-blue-300 mb-1">Suggested Action</div>
-                            <p className="text-xs text-gray-300 leading-relaxed">{insight.suggestedAction}</p>
+                            <p className="text-xs text-gray-300 leading-relaxed break-words">{insight.suggestedAction}</p>
                           </div>
                         </div>
                       </div>
@@ -1445,49 +1565,102 @@ export default function RevenuePage() {
 
         case 'competitor':
           const competitorData = tooltip.data;
+          const currentPrice = competitorData.currentPrice || 0;
           return (
-            <div className="space-y-4">
-              {/* Header */}
-              <div className="flex items-center gap-3 pb-3 border-b border-gray-200/20">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                  <TrendingUp className="w-4 h-4 text-white" />
+            <div className="space-y-3">
+              {/* Compact Header */}
+              <div className="flex items-center gap-2 pb-2 border-b border-gray-200/20">
+                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-md flex items-center justify-center flex-shrink-0">
+                  <TrendingUp className="w-3 h-3 text-white" />
                 </div>
-                <div>
-                  <h3 className="text-sm font-semibold text-white">Competitive Intelligence</h3>
-                  <p className="text-xs text-gray-300">Real-time market positioning</p>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-xs font-semibold text-white">Competitor Analysis</h3>
+                  <p className="text-xs text-gray-400">vs ₹{currentPrice.toLocaleString()}</p>
                 </div>
               </div>
 
-              {/* Market Position */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-xs text-gray-400">Market Position:</span>
-                  <span className={`text-xs font-medium px-3 py-1 rounded-full ${
-                    competitorData.indicator === 'higher' ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg' :
-                    competitorData.indicator === 'competitive' ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg' :
-                    'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
+              {/* Compact Market Position */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-white/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-gray-400">Position:</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                    competitorData.indicator === 'higher' ? 'bg-emerald-500/20 text-emerald-300' :
+                    competitorData.indicator === 'competitive' ? 'bg-yellow-500/20 text-yellow-300' :
+                    'bg-red-500/20 text-red-300'
                   }`}>
                     {competitorData.indicator === 'higher' ? '🏆 PREMIUM' :
                      competitorData.indicator === 'competitive' ? '⚡ COMPETITIVE' : '💰 VALUE'}
                   </span>
                 </div>
                 
-                {competitorData.details && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-white/5 rounded-md p-2">
-                      <div className="text-gray-400 text-xs mb-1">Price Advantage</div>
-                      <div className={`font-semibold text-sm ${
-                        competitorData.details.priceAdvantage > 0 ? 'text-emerald-400' : 'text-red-400'
-                      }`}>
-                        {competitorData.details.priceAdvantage > 0 ? '+' : ''}{competitorData.details.priceAdvantage}%
-                      </div>
-                    </div>
-                    <div className="bg-white/5 rounded-md p-2">
-                      <div className="text-gray-400 text-xs mb-1">Market Share</div>
-                      <div className="text-blue-400 font-semibold text-sm">{competitorData.details.marketShare}%</div>
+                {/* Compact Metrics */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white/5 rounded p-1.5 text-center">
+                    <div className="text-xs text-gray-400">Avg Rate</div>
+                    <div className="text-cyan-400 font-semibold text-sm">₹{competitorData.details?.averageRate || 425}</div>
+                  </div>
+                  <div className="bg-white/5 rounded p-1.5 text-center">
+                    <div className="text-xs text-gray-400">Advantage</div>
+                    <div className={`font-semibold text-sm ${
+                      (competitorData.details?.priceAdvantage || 0) > 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      {(competitorData.details?.priceAdvantage || 0) > 0 ? '+' : ''}{competitorData.details?.priceAdvantage || 0}%
                     </div>
                   </div>
-                )}
+                </div>
+              </div>
+
+              {/* Top 3 Competitors Only */}
+              {competitorData.details?.competitors && (
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-1 mb-1">
+                    <div className="w-1 h-1 bg-cyan-400 rounded-full"></div>
+                    <span className="text-xs font-medium text-cyan-300">Top Competitors</span>
+                  </div>
+                  
+                  {competitorData.details.competitors.slice(0, 3).map((competitor: any, index: number) => (
+                    <div key={index} className="bg-white/5 rounded-lg p-2 border border-white/10">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            competitor.trend === 'up' ? 'bg-emerald-500' :
+                            competitor.trend === 'down' ? 'bg-red-500' : 'bg-yellow-500'
+                          }`}></div>
+                          <span className="text-white text-xs font-medium truncate">{competitor.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1 flex-shrink-0">
+                          <span className="text-cyan-400 font-bold text-sm">₹{competitor.rate.toLocaleString()}</span>
+                          <span className={`text-xs ${
+                            competitor.rate > currentPrice ? 'text-red-400' : 
+                            competitor.rate < currentPrice ? 'text-emerald-400' : 'text-yellow-400'
+                          }`}>
+                            {competitor.rate > currentPrice ? '+' : competitor.rate < currentPrice ? '-' : '='}
+                            {Math.abs(competitor.rate - currentPrice)}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-1 mt-1 text-xs">
+                        <div className="text-center">
+                          <div className={`font-medium ${competitor.availability > 50 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {competitor.availability}%
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-blue-400 font-medium">{competitor.distance}km</div>
+                        </div>
+                        <div className="text-center">
+                          <div className="text-purple-400 font-medium">{competitor.rating}★</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Compact Footer */}
+              <div className="pt-2 border-t border-gray-200/20 text-center">
+                <span className="text-xs text-gray-400">Updated 2m ago</span>
               </div>
             </div>
           );
@@ -1496,11 +1669,11 @@ export default function RevenuePage() {
           const inventoryData = tooltip.data;
           const status = inventoryData.status as SmartInventoryStatus;
           return (
-            <div className="space-y-4 min-w-[400px]">
+            <div className="space-y-4">
               {/* Header */}
               <div className="flex items-center justify-between pb-3 border-b border-gray-200/20">
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
                     status.level === 'critical' ? 'bg-gradient-to-br from-red-500 to-red-600' :
                     status.level === 'low' ? 'bg-gradient-to-br from-orange-400 to-red-500' :
                     status.level === 'optimal' ? 'bg-gradient-to-br from-emerald-500 to-green-600' :
@@ -1508,14 +1681,14 @@ export default function RevenuePage() {
                   }`}>
                     <Package className="w-4 h-4 text-white" />
                   </div>
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <h3 className="text-sm font-semibold text-white">Smart Inventory Analysis</h3>
                     <p className="text-xs text-gray-300">AI-powered inventory intelligence</p>
                   </div>
                 </div>
-                <span className={`text-xs px-3 py-1 rounded-full font-medium ${
+                <span className={`text-[10px] px-3 py-1 rounded-full font-medium flex-shrink-0 ${
                   status.level === 'critical' ? 'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg' :
-                  status.level === 'low' ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white shadow-lg' :
+                  status.level === 'low' ? 'bg-gradient-to-r from-orange-400 to-red-500 text-white shadow-lg hidden' :
                   status.level === 'optimal' ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg' :
                   'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
                 }`}>
@@ -1528,7 +1701,7 @@ export default function RevenuePage() {
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10 text-center">
                   <div className="text-gray-400 text-xs mb-1">Current Inventory</div>
                   <div className="text-white font-bold text-xl">{inventoryData.inventory}</div>
-                  <div className="text-gray-500 text-xs">{inventoryData.roomType}</div>
+                  <div className="text-gray-500 text-xs truncate">{inventoryData.roomType}</div>
                 </div>
                 <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10 text-center">
                   <div className="text-gray-400 text-xs mb-1">Confidence</div>
@@ -1617,7 +1790,7 @@ export default function RevenuePage() {
                   {status.reasoning.slice(0, 3).map((reason, index) => (
                     <div key={index} className="flex items-start gap-2 text-xs">
                       <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                      <span className="text-gray-300 leading-relaxed">{reason}</span>
+                      <span className="text-gray-300 leading-relaxed break-words">{reason}</span>
                     </div>
                   ))}
                 </div>
@@ -1629,9 +1802,9 @@ export default function RevenuePage() {
                     <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
                       <Zap className="w-3 h-3 text-white" />
                     </div>
-                    <div>
+                    <div className="flex-1 min-w-0">
                       <div className="text-xs font-medium text-blue-300 mb-1">💡 Recommended Action</div>
-                      <p className="text-xs text-white leading-relaxed">{status.actionRequired}</p>
+                      <p className="text-xs text-white leading-relaxed break-words">{status.actionRequired}</p>
                     </div>
                   </div>
                 </div>
@@ -1683,9 +1856,8 @@ export default function RevenuePage() {
       <div 
         className="fixed z-[1000] pointer-events-auto"
         style={{ 
-          left: `${tooltip.position.x}px`, 
-          top: `${tooltip.position.y}px`,
-          transform: 'translate(-50%, -100%)'
+          left: `${position.x}px`, 
+          top: `${position.y}px`
         }}
         onMouseEnter={handleTooltipMouseEnter}
         onMouseLeave={handleTooltipMouseLeave}
@@ -1693,7 +1865,10 @@ export default function RevenuePage() {
         {/* Tooltip Container with Word-like styling */}
         <div className="relative">
           {/* Main Tooltip */}
-          <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-700/50 p-4 max-w-md min-w-80 transform transition-all duration-300 ease-out word-tooltip relative">
+          <div 
+            className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 backdrop-blur-xl rounded-xl shadow-2xl border border-gray-700/50 p-4 transform transition-all duration-300 ease-out word-tooltip relative overflow-hidden"
+            style={{ width: `${position.width}px` }}
+          >
             <div className="relative">
               {/* Subtle inner glow */}
               <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent rounded-lg pointer-events-none"></div>
@@ -1704,11 +1879,22 @@ export default function RevenuePage() {
               </div>
             </div>
             
-            {/* Enhanced Arrow - positioned as part of tooltip */}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2">
-              {/* Simple Clean Arrow */}
-              <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-gray-800 filter drop-shadow-lg"></div>
-            </div>
+            {/* Enhanced Arrow - positioned based on placement */}
+            {position.placement === 'right' && (
+              <div className="absolute left-0 top-1/2 transform -translate-x-full -translate-y-1/2">
+                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-r-[10px] border-r-gray-800 filter drop-shadow-lg"></div>
+              </div>
+            )}
+            {position.placement === 'left' && (
+              <div className="absolute right-0 top-1/2 transform translate-x-full -translate-y-1/2">
+                <div className="w-0 h-0 border-t-[10px] border-t-transparent border-b-[10px] border-b-transparent border-l-[10px] border-l-gray-800 filter drop-shadow-lg"></div>
+              </div>
+            )}
+            {position.placement === 'top' && (
+              <div className="absolute bottom-0 left-1/2 transform translate-y-full -translate-x-1/2">
+                <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-gray-800 filter drop-shadow-lg"></div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -1742,7 +1928,18 @@ export default function RevenuePage() {
             confidenceScore: 88,
             isActive: true,
             competitorIndicator: (i % 3 === 0) ? 'competitive' : 'higher',
-            eventImpact: i === 5 ? sampleEvents[0] : undefined
+            eventImpact: i === 5 ? sampleEvents[0] : undefined,
+            competitorData: {
+              competitors: [
+                { name: 'Grand Plaza Hotel', rate: 420 + (i * 5), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'City Center Inn', rate: 390 + (i * 3), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
+                { name: 'Business Hotel', rate: 445 + (i * 7), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
+                { name: 'Luxury Suites', rate: 480 + (i * 4), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
+              ],
+              marketPosition: 'competitive' as const,
+              priceAdvantage: -5 + (i % 10),
+              marketShare: 23 + (i % 8)
+            },
           }))
         },
         {
@@ -1804,7 +2001,18 @@ export default function RevenuePage() {
             confidenceScore: 85,
             isActive: true,
             competitorIndicator: (i % 3 === 0) ? 'competitive' : 'higher', // Deterministic pattern
-            eventImpact: i === 7 ? sampleEvents[0] : undefined
+            eventImpact: i === 7 ? sampleEvents[0] : undefined,
+            competitorData: {
+              competitors: [
+                { name: 'Grand Plaza Hotel', rate: 420 + (i * 5), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'City Center Inn', rate: 390 + (i * 3), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
+                { name: 'Business Hotel', rate: 445 + (i * 7), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
+                { name: 'Luxury Suites', rate: 480 + (i * 4), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
+              ],
+              marketPosition: 'competitive' as const,
+              priceAdvantage: -5 + (i % 10),
+              marketShare: 23 + (i % 8)
+            },
           }))
         },
         {
@@ -2271,9 +2479,16 @@ export default function RevenuePage() {
   };
 
   const handleTooltipShow = (content: string, e: React.MouseEvent) => {
+    // Get the trigger element's bounding rect for better positioning
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    
     setHoveredTooltip({
       content,
-      position: { x: e.clientX, y: e.clientY }
+      position: { 
+        x: rect.right, // Start from right edge of trigger
+        y: rect.top + (rect.height / 2) // Center vertically on trigger
+      }
     });
   };
 
@@ -2289,12 +2504,19 @@ export default function RevenuePage() {
       setTooltipTimeout(null);
     }
     
+    // Get the trigger element's bounding rect for better positioning
+    const target = e.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    
     // Add a small delay before showing to prevent rapid show/hide
     const showTimeout = setTimeout(() => {
       setRichTooltip({
         type,
         data,
-        position: { x: e.clientX + 10, y: e.clientY - 10 } // Offset tooltip away from cursor
+        position: { 
+          x: rect.right, // Start from right edge of trigger 
+          y: rect.top + (rect.height / 2) // Center vertically on trigger
+        }
       });
     }, 150); // 150ms delay before showing
     
@@ -4390,23 +4612,22 @@ export default function RevenuePage() {
     
     switch (level) {
       case 'critical':
-        displayText = 'SELLOUT RISK';
-        colorClass = 'bg-red-600 text-white font-bold';
-        actionRequired = 'Increase rates or add restrictions now';
-        confidence = Math.min(confidence, 95);
+        displayText = 'sellout risk';
+        colorClass = 'bg-red-500 text-white font-medium';
+        actionRequired = 'Immediate inventory action required';
         break;
       case 'low':
-        displayText = 'SLOW PACE';
+        displayText = 'slow pace';
         colorClass = 'bg-orange-500 text-white font-medium';
         actionRequired = 'Consider promotional pricing';
         break;
       case 'optimal':
-        displayText = 'GOOD PACE';
+        displayText = 'good pace';
         colorClass = 'bg-green-500 text-white font-medium';
         actionRequired = 'Monitor and maintain strategy';
         break;
       case 'oversupply':
-        displayText = 'POOR DEMAND';
+        displayText = 'poor demand';
         colorClass = 'bg-purple-500 text-white font-medium';
         actionRequired = 'Aggressive pricing needed';
         break;
@@ -4744,9 +4965,9 @@ export default function RevenuePage() {
                                         }, e)}
                                         onMouseLeave={hideRichTooltip}
                                       >
-                                        <span className={`text-xs font-medium px-2 py-1 rounded-full transition-all duration-200 ${
+                                        <span className={`text-[10px] px-1 py-0.5 font-medium rounded-full ${
                                           smartStatus.level === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                          smartStatus.level === 'low' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' :
+                                          smartStatus.level === 'low' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 hidden' :
                                           smartStatus.level === 'optimal' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                                           smartStatus.level === 'oversupply' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                           'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
@@ -4847,39 +5068,57 @@ export default function RevenuePage() {
                               </div>
                             ) : (
                               <>
+                                {/* Enhanced Price Display with Competitor Icon */}
                                 <div className="font-bold text-gray-900 dark:text-white mb-1">
                                   ₹{data.rate.toLocaleString()}
                                 </div>
 
-                                {/* Indicators Row */}
+                                {/* Dedicated Competitor Icon Row - Always Visible */}
+                                {data.competitorData && (
+                                  <div className="flex items-center justify-center mb-2">
+                                    <div 
+                                      className="tooltip-icon-area group/competitor cursor-pointer"
+                                      onMouseEnter={(e) => showRichTooltip('competitor', { 
+                                        indicator: data.competitorIndicator, 
+                                        currentPrice: data.rate,
+                                        details: data.competitorData ? {
+                                          ...data.competitorData,
+                                          averageRate: data.competitorData?.competitors.reduce((sum, comp) => sum + comp.rate, 0) / (data.competitorData?.competitors.length || 1),
+                                          lowestRate: Math.min(...(data.competitorData?.competitors.map(comp => comp.rate) || [0])),
+                                          highestRate: Math.max(...(data.competitorData?.competitors.map(comp => comp.rate) || [0])),
+                                          marketShare: data.competitorData?.marketShare || Math.floor(Math.random() * 30) + 15,
+                                          competitors: data.competitorData?.competitors.map(comp => ({
+                                            ...comp,
+                                            lastUpdated: new Date(Date.now() - Math.random() * 300000) // Random time in last 5 minutes
+                                          })) || []
+                                        } : {}
+                                      }, e)}
+                                      onMouseLeave={handleTooltipMouseLeave}
+                                    >
+                                      <div className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 ${
+                                        data.competitorIndicator === 'higher' 
+                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 group-hover/competitor:bg-emerald-200 dark:group-hover/competitor:bg-emerald-900/50' :
+                                        data.competitorIndicator === 'competitive' 
+                                          ? 'bg-yellow-100 dark:bg-yellow-900/30 group-hover/competitor:bg-yellow-200 dark:group-hover/competitor:bg-yellow-900/50' :
+                                          'bg-red-100 dark:bg-red-900/30 group-hover/competitor:bg-red-200 dark:group-hover/competitor:bg-red-900/50'
+                                      }`}>
+                                        <TrendingUp className={`w-3 h-3 ${
+                                          data.competitorIndicator === 'higher' ? 'text-emerald-600 dark:text-emerald-400' :
+                                          data.competitorIndicator === 'competitive' ? 'text-yellow-600 dark:text-yellow-400' :
+                                          'text-red-600 dark:text-red-400'
+                                        }`} />
+                                        <div className={`w-1.5 h-1.5 rounded-full ${
+                                          data.competitorIndicator === 'higher' ? 'bg-emerald-500' :
+                                          data.competitorIndicator === 'competitive' ? 'bg-yellow-500' :
+                                          'bg-red-500'
+                                        }`}></div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Other Indicators Row */}
                                 <div className="flex items-center justify-center gap-1 mb-1">
-                                  {data.competitorIndicator === 'higher' && (
-                                    <div 
-                                      className="tooltip-icon-area"
-                                      onMouseEnter={(e) => showRichTooltip('competitor', { indicator: 'higher', details: data.competitorData }, e)}
-                                      onMouseLeave={handleTooltipMouseLeave}
-                                    >
-                                      <ArrowUp className="w-3 h-3 text-green-500 tooltip-icon" />
-                                    </div>
-                                  )}
-                                  {data.competitorIndicator === 'lower' && (
-                                    <div 
-                                      className="tooltip-icon-area"
-                                      onMouseEnter={(e) => showRichTooltip('competitor', { indicator: 'lower', details: data.competitorData }, e)}
-                                      onMouseLeave={handleTooltipMouseLeave}
-                                    >
-                                      <ArrowDown className="w-3 h-3 text-red-500 tooltip-icon" />
-                                    </div>
-                                  )}
-                                  {data.competitorIndicator === 'competitive' && (
-                                    <div 
-                                      className="tooltip-icon-area" 
-                                      onMouseEnter={(e) => showRichTooltip('competitor', { indicator: 'competitive', details: data.competitorData }, e)}
-                                      onMouseLeave={handleTooltipMouseLeave}
-                                    >
-                                      <div className="w-3 h-3 rounded-full bg-yellow-500 tooltip-icon" />
-                                    </div>
-                                  )}
                                   {data.restrictions && data.restrictions.length > 0 && (
                                     <div 
                                       className="tooltip-icon-area"
@@ -4937,8 +5176,8 @@ export default function RevenuePage() {
                                     data.riskLevel === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
                                     data.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
                                     'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                  }`}>
-                                    {data.confidenceScore}%
+                                  } ${data.riskLevel === 'low' ? 'hidden' : ''}`}>
+                                    {data.riskLevel.toUpperCase()}
                                   </div>
                                 </div>
                               </>
@@ -4989,12 +5228,16 @@ export default function RevenuePage() {
       {/* General Tooltip */}
       {hoveredTooltip && (
         <div 
-          className="fixed z-[1000] bg-gray-900 text-white px-2 py-1 rounded text-xs pointer-events-none"
+          className="fixed z-[1000] bg-gray-900 text-white px-3 py-2 rounded-lg text-xs pointer-events-none shadow-lg border border-gray-700"
           style={{ 
-            left: hoveredTooltip.position.x + 10, 
-            top: hoveredTooltip.position.y - 30
+            left: hoveredTooltip.position.x + 8, 
+            top: hoveredTooltip.position.y - 20
           }}
         >
+          {/* Arrow pointing left to trigger */}
+          <div className="absolute left-0 top-1/2 transform -translate-x-full -translate-y-1/2">
+            <div className="w-0 h-0 border-t-[6px] border-t-transparent border-b-[6px] border-b-transparent border-r-[6px] border-r-gray-900"></div>
+          </div>
           {hoveredTooltip.content}
         </div>
       )}
