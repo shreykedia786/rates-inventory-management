@@ -23,6 +23,8 @@ import {
 } from 'lucide-react';
 import { EnhancedPriceModal } from '@/components/ui/enhanced-price-modal';
 import { EnhancedInventoryModal } from '@/components/ui/inventory-modal';
+import GlobalNewsInsights from '../components/GlobalNewsInsights';
+import { useGlobalNewsInsights } from '../hooks/useGlobalNewsInsights';
 
 // Enhanced Types for Modern Interface
 interface AIInsight {
@@ -782,8 +784,28 @@ export default function RevenuePage() {
     userId: 'all'
   });
 
+  // Global News Insights State
+  const [isGlobalNewsOpen, setIsGlobalNewsOpen] = useState(false);
+
   // Room Types State (for expand/collapse functionality) - Properly initialized after sampleRoomTypes
   const [roomTypes, setRoomTypes] = useState<RoomType[]>([]);
+
+  // Global News Insights Hook
+  const {
+    insights: globalNewsInsights,
+    isLoading: isNewsLoading,
+    error: newsError,
+    stats: newsStats,
+    refreshInsights: refreshNewsInsights,
+    applyInsight: applyNewsInsight,
+    dismissInsight: dismissNewsInsight,
+    toggleAutoRefresh,
+    isAutoRefreshEnabled
+  } = useGlobalNewsInsights({
+    autoRefresh: true,
+    refreshInterval: 15 * 60 * 1000, // 15 minutes
+    enableNotifications: true
+  });
 
   // Sample Restriction Types
   const restrictionTypes: RestrictionType[] = [
@@ -1597,7 +1619,7 @@ export default function RevenuePage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-white/5 rounded p-1.5 text-center">
                     <div className="text-xs text-gray-400">Avg Rate</div>
-                    <div className="text-cyan-400 font-semibold text-sm">₹{competitorData.details?.averageRate || 425}</div>
+                    <div className="text-cyan-400 font-semibold text-sm">₹{(competitorData.details?.averageRate || 0).toLocaleString()}</div>
                   </div>
                   <div className="bg-white/5 rounded p-1.5 text-center">
                     <div className="text-xs text-gray-400">Advantage</div>
@@ -1931,13 +1953,13 @@ export default function RevenuePage() {
             eventImpact: i === 5 ? sampleEvents[0] : undefined,
             competitorData: {
               competitors: [
-                { name: 'Grand Plaza Hotel', rate: 420 + (i * 5), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'City Center Inn', rate: 390 + (i * 3), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
-                { name: 'Business Hotel', rate: 445 + (i * 7), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 480 + (i * 4), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
+                { name: 'Grand Plaza Hotel', rate: 6200 + (i * 95), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'City Center Inn', rate: 5900 + (i * 85), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
+                { name: 'Business Hotel', rate: 6800 + (i * 110), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
+                { name: 'Luxury Suites', rate: 7200 + (i * 120), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
               ],
               marketPosition: 'competitive' as const,
-              priceAdvantage: -5 + (i % 10),
+              priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4))) / ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)) * 100),
               marketShare: 23 + (i % 8)
             },
           }))
@@ -2004,13 +2026,13 @@ export default function RevenuePage() {
             eventImpact: i === 7 ? sampleEvents[0] : undefined,
             competitorData: {
               competitors: [
-                { name: 'Grand Plaza Hotel', rate: 420 + (i * 5), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'City Center Inn', rate: 390 + (i * 3), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
-                { name: 'Business Hotel', rate: 445 + (i * 7), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 480 + (i * 4), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
+                { name: 'Grand Plaza Hotel', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'City Center Inn', rate: 7800 + (i * 130), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
+                { name: 'Business Hotel', rate: 9000 + (i * 160), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
+                { name: 'Luxury Suites', rate: 9500 + (i * 180), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
               ],
               marketPosition: 'competitive' as const,
-              priceAdvantage: -5 + (i % 10),
+              priceAdvantage: Math.round(((8500 + (i * 150) + (dates[i]?.isWeekend ? 1000 : 0)) - (8200 + 7800 + 9000 + 9500) / 4) / ((8200 + 7800 + 9000 + 9500) / 4) * 100),
               marketShare: 23 + (i % 8)
             },
           }))
@@ -4809,6 +4831,31 @@ export default function RevenuePage() {
                   </span>
                 )}
               </button>
+
+              {/* Global News AI Button */}
+              <button 
+                onClick={() => setIsGlobalNewsOpen(true)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 ${
+                  isNewsLoading 
+                    ? 'bg-gradient-to-r from-orange-500 to-red-500 animate-pulse' 
+                    : newsStats.critical > 0
+                    ? 'bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700'
+                    : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700'
+                } text-white`}
+              >
+                <Globe className="w-4 h-4" />
+                <span>Global News AI</span>
+                {newsStats.critical > 0 && (
+                  <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full font-bold animate-pulse">
+                    {newsStats.critical}
+                  </span>
+                )}
+                {newsStats.actionable > 0 && newsStats.critical === 0 && (
+                  <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
+                    {newsStats.actionable}
+                  </span>
+                )}
+              </button>
             </div>
           </div>
 
@@ -5083,14 +5130,25 @@ export default function RevenuePage() {
                                         currentPrice: data.rate,
                                         details: data.competitorData ? {
                                           ...data.competitorData,
-                                          averageRate: data.competitorData?.competitors.reduce((sum, comp) => sum + comp.rate, 0) / (data.competitorData?.competitors.length || 1),
-                                          lowestRate: Math.min(...(data.competitorData?.competitors.map(comp => comp.rate) || [0])),
-                                          highestRate: Math.max(...(data.competitorData?.competitors.map(comp => comp.rate) || [0])),
+                                          // Calculate accurate average rate from actual competitor rates
+                                          averageRate: data.competitorData.competitors.length > 0 
+                                            ? Math.round(data.competitorData.competitors.reduce((sum, comp) => sum + comp.rate, 0) / data.competitorData.competitors.length)
+                                            : 0,
+                                          lowestRate: data.competitorData.competitors.length > 0 
+                                            ? Math.min(...data.competitorData.competitors.map(comp => comp.rate))
+                                            : 0,
+                                          highestRate: data.competitorData.competitors.length > 0 
+                                            ? Math.max(...data.competitorData.competitors.map(comp => comp.rate))
+                                            : 0,
+                                          // Calculate correct price advantage based on current rate vs average competitor rate
+                                          priceAdvantage: data.competitorData.competitors.length > 0 
+                                            ? Math.round(((data.rate - (data.competitorData.competitors.reduce((sum, comp) => sum + comp.rate, 0) / data.competitorData.competitors.length)) / (data.competitorData.competitors.reduce((sum, comp) => sum + comp.rate, 0) / data.competitorData.competitors.length)) * 100)
+                                            : 0,
                                           marketShare: data.competitorData?.marketShare || Math.floor(Math.random() * 30) + 15,
-                                          competitors: data.competitorData?.competitors.map(comp => ({
+                                          competitors: data.competitorData.competitors.map(comp => ({
                                             ...comp,
                                             lastUpdated: new Date(Date.now() - Math.random() * 300000) // Random time in last 5 minutes
-                                          })) || []
+                                          }))
                                         } : {}
                                       }, e)}
                                       onMouseLeave={handleTooltipMouseLeave}
@@ -5425,6 +5483,18 @@ export default function RevenuePage() {
 
       {/* Event Logs Panel */}
       <EventLogsPanel />
+
+      {/* Global News Insights Panel */}
+      <GlobalNewsInsights
+        isOpen={isGlobalNewsOpen}
+        onClose={() => setIsGlobalNewsOpen(false)}
+        insights={globalNewsInsights}
+        isDark={isDark}
+        onApplyInsight={applyNewsInsight}
+        onDismissInsight={dismissNewsInsight}
+        onRefreshInsights={refreshNewsInsights}
+        isLoading={isNewsLoading}
+      />
     </div>
   );
 }
