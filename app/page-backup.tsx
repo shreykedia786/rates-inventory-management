@@ -24,10 +24,7 @@ import {
 import { EnhancedPriceModal } from '@/components/ui/enhanced-price-modal';
 import { EnhancedInventoryModal } from '@/components/ui/inventory-modal';
 import GlobalNewsInsights from '../components/GlobalNewsInsights';
-import { MonthlyCalendarView } from '../components/MonthlyCalendarView';
 import { useGlobalNewsInsights } from '../hooks/useGlobalNewsInsights';
-import PromotionAssistant from '../components/PromotionAssistant';
-import PublishConfirmation from '../components/PublishConfirmation';
 
 // Enhanced Types for Modern Interface
 interface AIInsight {
@@ -715,7 +712,6 @@ export default function RevenuePage() {
     timestamp: Date;
   }>>([]);
   const [showChangesSummary, setShowChangesSummary] = useState(false);
-  const [showPublishConfirmation, setShowPublishConfirmation] = useState(false);
   const [hoveredTooltip, setHoveredTooltip] = useState<{
     content: string;
     position: { x: number; y: number };
@@ -1453,10 +1449,7 @@ export default function RevenuePage() {
 
       switch (tooltip.type) {
         case 'event':
-          // Handle both data formats: direct array or object with events property
-          const eventData = tooltip.data;
-          const events = Array.isArray(eventData) ? eventData : (eventData?.events || []);
-          
+          const events = tooltip.data as Event[];
           return (
             <div className="space-y-4">
               {/* Header */}
@@ -1466,13 +1459,13 @@ export default function RevenuePage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-sm font-semibold text-white truncate">Event Impact Analysis</h3>
-                  <p className="text-xs text-gray-300">{Array.isArray(events) ? events.length : 0} event{(Array.isArray(events) && events.length !== 1) ? 's' : ''} detected</p>
+                  <p className="text-xs text-gray-300">{events.length} event{events.length !== 1 ? 's' : ''} detected</p>
                 </div>
               </div>
 
               {/* Event Details */}
               <div className="space-y-3">
-                {Array.isArray(events) && events.length > 0 ? events.map((event, index) => (
+                {events.map((event, index) => (
                   <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                     <div className="flex items-start justify-between mb-2">
                       <div className="flex-1 min-w-0 pr-2">
@@ -1524,20 +1517,13 @@ export default function RevenuePage() {
                       </div>
                     )}
                   </div>
-                )) : (
-                  <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 text-center">
-                    <div className="text-gray-400 text-sm">No events detected for this date</div>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
           );
 
         case 'ai':
-          // Handle both data formats: direct array or object with insights property
-          const aiData = tooltip.data;
-          const aiInsights = Array.isArray(aiData) ? aiData : (aiData.insights || []);
-          
+          const aiInsights = tooltip.data as AIInsight[];
           return (
             <div className="space-y-4">
               {/* Header */}
@@ -1553,7 +1539,7 @@ export default function RevenuePage() {
 
               {/* AI Insights */}
               <div className="space-y-3">
-                {Array.isArray(aiInsights) && aiInsights.length > 0 ? aiInsights.slice(0, 2).map((insight, index) => (
+                {aiInsights.slice(0, 2).map((insight, index) => (
                   <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex-1 min-w-0 pr-2">
@@ -1600,11 +1586,7 @@ export default function RevenuePage() {
                       </div>
                     )}
                   </div>
-                )) : (
-                  <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 text-center">
-                    <div className="text-gray-400 text-sm">No AI insights available for this date</div>
-                  </div>
-                )}
+                ))}
               </div>
             </div>
           );
@@ -1630,12 +1612,12 @@ export default function RevenuePage() {
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs text-gray-400">Position:</span>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    competitorData.marketPosition === 'premium' ? 'bg-emerald-500/20 text-emerald-300' :
-                    competitorData.marketPosition === 'competitive' ? 'bg-yellow-500/20 text-yellow-300' :
+                    competitorData.indicator === 'higher' ? 'bg-emerald-500/20 text-emerald-300' :
+                    competitorData.indicator === 'competitive' ? 'bg-yellow-500/20 text-yellow-300' :
                     'bg-red-500/20 text-red-300'
                   }`}>
-                    {competitorData.marketPosition === 'premium' ? '🏆 PREMIUM' :
-                     competitorData.marketPosition === 'competitive' ? '⚡ COMPETITIVE' : '💰 VALUE'}
+                    {competitorData.indicator === 'higher' ? '🏆 PREMIUM' :
+                     competitorData.indicator === 'competitive' ? '⚡ COMPETITIVE' : '💰 VALUE'}
                   </span>
                 </div>
                 
@@ -1643,28 +1625,28 @@ export default function RevenuePage() {
                 <div className="grid grid-cols-2 gap-2">
                   <div className="bg-white/5 rounded p-1.5 text-center">
                     <div className="text-xs text-gray-400">Avg Rate</div>
-                    <div className="text-cyan-400 font-semibold text-sm">₹{(competitorData.averageRate || 0).toLocaleString()}</div>
+                    <div className="text-cyan-400 font-semibold text-sm">₹{(competitorData.details?.averageRate || 0).toLocaleString()}</div>
                   </div>
                   <div className="bg-white/5 rounded p-1.5 text-center">
                     <div className="text-xs text-gray-400">Advantage</div>
                     <div className={`font-semibold text-sm ${
-                      (competitorData.priceAdvantage || 0) > 0 ? 'text-emerald-400' : 'text-red-400'
+                      (competitorData.details?.priceAdvantage || 0) > 0 ? 'text-emerald-400' : 'text-red-400'
                     }`}>
-                      {(competitorData.priceAdvantage || 0) > 0 ? '+' : ''}{competitorData.priceAdvantage || 0}%
+                      {(competitorData.details?.priceAdvantage || 0) > 0 ? '+' : ''}{competitorData.details?.priceAdvantage || 0}%
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Top 3 Competitors Only */}
-              {competitorData.competitors && (
+              {competitorData.details?.competitors && (
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-1 mb-1">
                     <div className="w-1 h-1 bg-cyan-400 rounded-full"></div>
                     <span className="text-xs font-medium text-cyan-300">Top Competitors</span>
                   </div>
                   
-                  {competitorData.competitors.slice(0, 3).map((competitor: any, index: number) => (
+                  {competitorData.details.competitors.slice(0, 3).map((competitor: any, index: number) => (
                     <div key={index} className="bg-white/5 rounded-lg p-2 border border-white/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 flex-1 min-w-0">
@@ -1780,75 +1762,77 @@ export default function RevenuePage() {
               {/* Analysis Factors */}
               <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
                 <div className="text-xs font-medium text-gray-300 mb-3 flex items-center gap-2">
-                  <div className="w-1 h-1 bg-blue-400 rounded-full"></div>
-                  Smart Analysis Factors
+                  <BarChart3 className="w-3 h-3" />
+                  Analysis Factors
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center p-2 bg-white/5 rounded">
                     <span className="text-gray-400">Demand Pace:</span>
-                    <span className={`font-medium ${
-                      status.factors.demandPace > 0.7 ? 'text-emerald-400' :
-                      status.factors.demandPace > 0.4 ? 'text-yellow-400' : 'text-red-400'
+                    <span className={`font-semibold ${
+                      status.factors.demandPace > 10 ? 'text-emerald-400' :
+                      status.factors.demandPace < -10 ? 'text-red-400' :
+                      'text-yellow-400'
                     }`}>
-                      {(status.factors.demandPace * 100).toFixed(0)}%
+                      {status.factors.demandPace > 0 ? '+' : ''}{Math.round(status.factors.demandPace)}%
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-400">Competition:</span>
-                    <span className={`font-medium ${
+                  <div className="flex justify-between items-center p-2 bg-white/5 rounded">
+                    <span className="text-gray-400">vs Competitors:</span>
+                    <span className={`font-semibold ${
                       status.factors.competitorPosition === 'advantage' ? 'text-emerald-400' :
-                      status.factors.competitorPosition === 'parity' ? 'text-yellow-400' : 'text-red-400'
+                      status.factors.competitorPosition === 'parity' ? 'text-yellow-400' :
+                      'text-red-400'
                     }`}>
-                      {status.factors.competitorPosition.toUpperCase()}
+                      {status.factors.competitorPosition === 'advantage' ? '🚀 AHEAD' :
+                       status.factors.competitorPosition === 'parity' ? '⚖️ PARITY' : '📉 BEHIND'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center p-2 bg-white/5 rounded">
                     <span className="text-gray-400">Event Impact:</span>
-                    <span className={`font-medium ${
+                    <span className={`font-semibold ${
                       status.factors.eventImpact === 'positive' ? 'text-emerald-400' :
-                      status.factors.eventImpact === 'negative' ? 'text-red-400' : 'text-gray-400'
+                      status.factors.eventImpact === 'negative' ? 'text-red-400' :
+                      'text-gray-400'
                     }`}>
-                      {status.factors.eventImpact.toUpperCase()}
+                      {status.factors.eventImpact === 'positive' ? '📈 BOOST' :
+                       status.factors.eventImpact === 'negative' ? '📉 DRAG' : '➖ NEUTRAL'}
                     </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center p-2 bg-white/5 rounded">
                     <span className="text-gray-400">Season:</span>
-                    <span className={`font-medium ${
-                      status.factors.seasonalTrend === 'peak' ? 'text-emerald-400' :
-                      status.factors.seasonalTrend === 'shoulder' ? 'text-yellow-400' : 'text-blue-400'
-                    }`}>
-                      {status.factors.seasonalTrend.toUpperCase()}
+                    <span className="font-semibold text-blue-400">
+                      {status.factors.seasonalTrend === 'peak' ? '🔥 PEAK' :
+                       status.factors.seasonalTrend === 'shoulder' ? '🌤️ SHOULDER' : '❄️ VALLEY'}
                     </span>
                   </div>
                 </div>
               </div>
-
-              {/* Recommendations */}
-              {status.reasoning && status.reasoning.length > 0 && (
-                <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
-                  <div className="text-xs font-medium text-gray-300 mb-2 flex items-center gap-2">
-                    <div className="w-1 h-1 bg-purple-400 rounded-full"></div>
-                    AI Recommendations
-                  </div>
-                  <div className="space-y-1">
-                    {status.reasoning.slice(0, 2).map((reason, index) => (
-                      <div key={index} className="flex items-start gap-2 text-xs">
-                        <div className="w-1 h-1 bg-purple-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                        <span className="text-gray-300 leading-relaxed">{reason}</span>
-                      </div>
-                    ))}
-                  </div>
+              
+              {/* Key Insights */}
+              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
+                <div className="text-xs font-medium text-gray-300 mb-3 flex items-center gap-2">
+                  <Lightbulb className="w-3 h-3" />
+                  Key Insights
                 </div>
-              )}
-
-              {/* Action Required */}
+                <div className="space-y-2">
+                  {status.reasoning.slice(0, 3).map((reason, index) => (
+                    <div key={index} className="flex items-start gap-2 text-xs">
+                      <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                      <span className="text-gray-300 leading-relaxed break-words">{reason}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              
               {status.actionRequired && (
-                <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-lg p-3 border border-orange-500/30">
+                <div className="bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-lg p-3 border border-blue-500/30">
                   <div className="flex items-start gap-2">
-                    <div className="w-1.5 h-1.5 bg-orange-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                    <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Zap className="w-3 h-3 text-white" />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs font-medium text-orange-300 mb-1">Action Required</div>
-                      <p className="text-xs text-gray-300 leading-relaxed">{status.actionRequired}</p>
+                      <div className="text-xs font-medium text-blue-300 mb-1">💡 Recommended Action</div>
+                      <p className="text-xs text-white leading-relaxed break-words">{status.actionRequired}</p>
                     </div>
                   </div>
                 </div>
@@ -2100,7 +2084,6 @@ export default function RevenuePage() {
                 { name: 'Luxury Suites', rate: 7200 + (i * 120), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
               ],
               marketPosition: 'competitive' as const,
-              averageRate: Math.round((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)),
               priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4))) / ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)) * 100),
               marketShare: 23 + (i % 8)
             },
@@ -2119,19 +2102,7 @@ export default function RevenuePage() {
             riskLevel: 'low' as const,
             confidenceScore: 92,
             isActive: true,
-            competitorIndicator: (i % 4 === 0) ? 'higher' : (i % 4 === 1) ? 'competitive' : 'lower',
-            competitorData: {
-              competitors: [
-                { name: 'Grand Plaza Hotel', rate: 5500 + (i * 75), availability: 60 + (i % 25), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'City Center Inn', rate: 5200 + (i * 70), availability: 80 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
-                { name: 'Business Hotel', rate: 6000 + (i * 85), availability: 50 + (i % 20), distance: 0.6, rating: 4.0, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 6400 + (i * 95), availability: 35 + (i % 25), distance: 1.5, rating: 4.5, trend: 'up' }
-              ],
-              marketPosition: (i % 3 === 0) ? 'premium' : (i % 3 === 1) ? 'competitive' : 'value',
-              averageRate: Math.round((5500 + 5200 + 6000 + 6400) / 4 + (i * (75 + 70 + 85 + 95) / 4)),
-              priceAdvantage: Math.round(((5800 + (i * 80) + (dates[i]?.isWeekend ? 600 : 0)) - ((5500 + 5200 + 6000 + 6400) / 4 + (i * (75 + 70 + 85 + 95) / 4))) / ((5500 + 5200 + 6000 + 6400) / 4 + (i * (75 + 70 + 85 + 95) / 4)) * 100),
-              marketShare: 20 + (i % 12)
-            }
+            competitorIndicator: 'competitive'
           }))
         },
         {
@@ -2186,7 +2157,6 @@ export default function RevenuePage() {
                 { name: 'Luxury Suites', rate: 9500 + (i * 180), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
               ],
               marketPosition: 'competitive' as const,
-              averageRate: Math.round((8200 + 7800 + 9000 + 9500) / 4 + (i * (140 + 130 + 160 + 180) / 4)),
               priceAdvantage: Math.round(((8500 + (i * 150) + (dates[i]?.isWeekend ? 1000 : 0)) - (8200 + 7800 + 9000 + 9500) / 4) / ((8200 + 7800 + 9000 + 9500) / 4) * 100),
               marketShare: 23 + (i % 8)
             },
@@ -2558,39 +2528,20 @@ export default function RevenuePage() {
   };
 
   const handlePriceSave = (newPrice: number) => {
-    // Create change record for publishing
-    if (selectedProduct && newPrice !== selectedProduct.price) {
+    if (selectedProduct) {
       const change = {
         id: Date.now().toString(),
         type: 'price' as const,
         room: selectedProduct.room,
         product: selectedProduct.product,
-        date: dates.find((_, index) => index === 0)?.dateStr || '', // This should be updated to get the correct date
+        date: dates[0]?.dateStr || '',
         oldValue: selectedProduct.price,
         newValue: newPrice,
         timestamp: new Date()
       };
       setChanges(prev => [...prev, change]);
+      console.log('Saving new price:', newPrice);
     }
-
-    // Log the price change
-    logEvent({
-      eventType: 'price_update',
-      roomType: selectedProduct?.room,
-      ratePlan: selectedProduct?.product,
-      oldValue: selectedProduct?.price,
-      newValue: newPrice,
-      changeAmount: newPrice - (selectedProduct?.price || 0),
-      changePercentage: selectedProduct?.price ? ((newPrice - selectedProduct.price) / selectedProduct.price) * 100 : 0,
-      source: 'manual',
-      severity: Math.abs(newPrice - (selectedProduct?.price || 0)) > 1000 ? 'high' : 'medium',
-      category: 'pricing',
-      description: `Updated ${selectedProduct?.room} ${selectedProduct?.product} rate from ₹${selectedProduct?.price} to ₹${newPrice}`
-    });
-
-    setSelectedProduct(null);
-    setIsPriceModalOpen(false);
-    console.log('Saving new price:', newPrice);
   };
 
   const handleInventorySave = (newInventory: number) => {
@@ -2598,20 +2549,6 @@ export default function RevenuePage() {
     if (selectedInventory) {
       const cacheKey = `${selectedInventory.room}-${dates[selectedInventory.dateIndex]?.dateStr}-${selectedInventory.inventory}`;
       inventoryStatusCache.current.delete(cacheKey);
-    }
-    
-    // Create change record for publishing
-    if (selectedInventory && newInventory !== selectedInventory.inventory) {
-      const change = {
-        id: Date.now().toString(),
-        type: 'inventory' as const,
-        room: selectedInventory.room,
-        date: dates[selectedInventory.dateIndex]?.dateStr || '',
-        oldValue: selectedInventory.inventory,
-        newValue: newInventory,
-        timestamp: new Date()
-      };
-      setChanges(prev => [...prev, change]);
     }
     
     setRoomTypes(prev => 
@@ -2656,13 +2593,7 @@ export default function RevenuePage() {
   const publishChanges = () => {
     if (changes.length === 0) return;
     
-    // Show the detailed confirmation modal
-    setShowPublishConfirmation(true);
-  };
-
-  const handlePublishConfirmed = () => {
     console.log('Publishing changes:', changes);
-    setShowPublishConfirmation(false);
     setShowChangesSummary(true);
     
     // In real app, this would send changes to backend
@@ -4886,10 +4817,9 @@ export default function RevenuePage() {
                   </span>
                 )}
               </button>
-            </div>
-          </div>
           {/* View Content - Conditional Rendering */}
-          {currentView === 'daily' ? (
+            </div>
+          </div>          {currentView === 'daily' ? (
             // Daily View - Complete Enhanced Grid with All Functionality
             <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 overflow-x-auto">
               <div className="revenue-grid min-w-max">
@@ -4983,19 +4913,13 @@ export default function RevenuePage() {
                         <div 
                           key={dateIndex} 
                           className={`grid-cell bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-800/30 
-                                   transition-all duration-200 cursor-pointer group relative border border-blue-200/30 dark:border-blue-800/30
-                                   ${inv.isChanged ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600' : ''}`}
+                                   transition-all duration-200 cursor-pointer group relative border border-blue-200/30 dark:border-blue-800/30`}
                           onClick={() => handleInventoryClick(roomType.name, inv.inventory, dateIndex)}
                           onDoubleClick={(e) => handleInventoryDoubleClick(roomType.id, dateIndex, inv.inventory, e)}
                           onMouseEnter={(e) => handleTooltipShow(`${inv.inventory} rooms available - Click to edit, Double-click for inline edit`, e)}
                           onMouseLeave={handleTooltipHide}
                         >
                           <div className="flex flex-col items-center justify-center h-full p-3">
-                            {/* Change Indicator */}
-                            {inv.isChanged && (
-                              <div className="absolute top-1 left-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                            )}
-                            
                             {/* Inline Edit Input or Display */}
                             {inlineEdit?.type === 'inventory' && 
                              inlineEdit.roomId === roomType.id && 
@@ -5011,23 +4935,13 @@ export default function RevenuePage() {
                                          rounded px-1 text-blue-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 min="0"
                                 max="999"
-                                autoFocus
                               />
                             ) : (
                               <>
                                 {/* Large, Clear Number */}
-                                <div className={`text-2xl font-bold mb-1 ${
-                                  inv.isChanged ? 'text-orange-600 dark:text-orange-400' : 'text-blue-900 dark:text-blue-100'
-                                }`}>
+                                <div className="text-2xl font-bold text-blue-900 dark:text-blue-100 mb-1">
                                   {inv.inventory}
                                 </div>
-                                
-                                {/* Change Value Indicator */}
-                                {inv.isChanged && inv.originalInventory !== undefined && (
-                                  <div className="absolute bottom-1 right-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                                    {inv.originalInventory} → {inv.inventory}
-                                  </div>
-                                )}
 
                                 {/* Smart Status Indicator - Enhanced */}
                                 <div className="flex items-center gap-1">
@@ -5128,8 +5042,7 @@ export default function RevenuePage() {
                         {product.data.map((data, dateIndex) => (
                           <div 
                             key={dateIndex} 
-                            className={`grid-cell cursor-pointer group relative bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
-                              ${data.isChanged ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600' : ''}
+                            className={`grid-cell cursor-pointer group relative
                               ${data.aiInsights.length > 0 ? 'has-ai-insight ring-1 ring-purple-200 dark:ring-purple-800' : ''} 
                               ${data.eventImpact ? 'has-event ring-1 ring-orange-200 dark:ring-orange-800' : ''}
                               ${dates[dateIndex]?.events.length > 0 ? 'event-affected bg-orange-50 dark:bg-orange-900/10' : ''}
@@ -5140,11 +5053,6 @@ export default function RevenuePage() {
                             onDoubleClick={(e) => handleCellDoubleClick(roomType.id, product.id, dateIndex, data.rate, e)}
                           >
                             <div className="text-center p-2">
-                              {/* Change Indicator */}
-                              {data.isChanged && (
-                                <div className="absolute top-1 left-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                              )}
-                              
                               {/* Inline Edit Input or Display */}
                               {inlineEdit?.type === 'price' && 
                                inlineEdit.roomId === roomType.id && 
@@ -5163,46 +5071,67 @@ export default function RevenuePage() {
                                              rounded px-1 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     min="0"
                                     max="999999"
-                                    autoFocus
                                   />
                                   <div className="text-xs text-blue-600 dark:text-blue-400">Enter/Esc</div>
                                 </div>
                               ) : (
                                 <>
                                   {/* Enhanced Price Display with Competitor Icon */}
-                                  <div className={`font-bold mb-1 ${
-                                    data.isChanged ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'
-                                  }`}>
+                                  <div className="font-bold text-gray-900 dark:text-white mb-1">
                                     ₹{data.rate.toLocaleString()}
                                   </div>
-                                  
-                                  {/* Change Value Indicator */}
-                                  {data.isChanged && data.originalRate !== undefined && (
-                                    <div className="absolute bottom-1 right-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                                      ₹{data.originalRate.toLocaleString()} → ₹{data.rate.toLocaleString()}
-                                    </div>
-                                  )}
-                                  
-                                  {/* Competitor Position Indicator */}
-                                  {data.competitorData && data.competitorIndicator && (
-                                    <div className="absolute top-1 right-1 group/competitor">
-                                      <div className={`flex items-center gap-1 px-1 py-0.5 rounded-full transition-all duration-200 ${
-                                        data.competitorIndicator === 'higher' 
-                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 group-hover/competitor:bg-emerald-200 dark:group-hover/competitor:bg-emerald-900/50' :
-                                        data.competitorIndicator === 'competitive' 
-                                          ? 'bg-yellow-100 dark:bg-yellow-900/30 group-hover/competitor:bg-yellow-200 dark:group-hover/competitor:bg-yellow-900/50' :
-                                          'bg-red-100 dark:bg-red-900/30 group-hover/competitor:bg-red-200 dark:group-hover/competitor:bg-red-900/50'
-                                      }`}>
-                                        <TrendingUp className={`w-3 h-3 ${
-                                          data.competitorIndicator === 'higher' ? 'text-emerald-600 dark:text-emerald-400' :
-                                          data.competitorIndicator === 'competitive' ? 'text-yellow-600 dark:text-yellow-400' :
-                                          'text-red-600 dark:text-red-400'
-                                        }`} />
-                                        <div className={`w-1.5 h-1.5 rounded-full ${
-                                          data.competitorIndicator === 'higher' ? 'bg-emerald-500' :
-                                          data.competitorIndicator === 'competitive' ? 'bg-yellow-500' :
-                                          'bg-red-500'
-                                        }`}></div>
+
+                                  {/* Dedicated Competitor Icon Row - Always Visible */}
+                                  {data.competitorData && (
+                                    <div className="flex items-center justify-center mb-2">
+                                      <div 
+                                        className="tooltip-icon-area group/competitor cursor-pointer"
+                                        onMouseEnter={(e) => showRichTooltip('competitor', { 
+                                          indicator: data.competitorIndicator, 
+                                          currentPrice: data.rate,
+                                          details: data.competitorData ? {
+                                            ...data.competitorData,
+                                            // Calculate accurate average rate from actual competitor rates
+                                            averageRate: data.competitorData.competitors.length > 0 
+                                              ? Math.round(data.competitorData.competitors.reduce((sum, comp) => sum + comp.rate, 0) / data.competitorData.competitors.length)
+                                              : 0,
+                                            lowestRate: data.competitorData.competitors.length > 0 
+                                              ? Math.min(...data.competitorData.competitors.map(comp => comp.rate))
+                                              : 0,
+                                            highestRate: data.competitorData.competitors.length > 0 
+                                              ? Math.max(...data.competitorData.competitors.map(comp => comp.rate))
+                                              : 0,
+                                            // Calculate correct price advantage based on current rate vs average competitor rate
+                                            priceAdvantage: data.competitorData.competitors.length > 0 
+                                              ? Math.round(((data.rate - (data.competitorData.competitors.reduce((sum, comp) => sum + comp.rate, 0) / data.competitorData.competitors.length)) / (data.competitorData.competitors.reduce((sum, comp) => sum + comp.rate, 0) / data.competitorData.competitors.length)) * 100)
+                                              : 0,
+                                            marketShare: data.competitorData?.marketShare || Math.floor(Math.random() * 30) + 15,
+                                            competitors: data.competitorData.competitors.map(comp => ({
+                                              ...comp,
+                                              lastUpdated: new Date(Date.now() - Math.random() * 300000) // Random time in last 5 minutes
+                                            }))
+                                          } : {}
+                                        }, e)}
+                                        onMouseLeave={handleTooltipMouseLeave}
+                                      >
+                                        <div className={`flex items-center gap-1 px-2 py-1 rounded-md transition-all duration-200 ${
+                                          data.competitorIndicator === 'higher' 
+                                            ? 'bg-emerald-100 dark:bg-emerald-900/30 group-hover/competitor:bg-emerald-200 dark:group-hover/competitor:bg-emerald-900/50' :
+                                          data.competitorIndicator === 'competitive' 
+                                            ? 'bg-yellow-100 dark:bg-yellow-900/30 group-hover/competitor:bg-yellow-200 dark:group-hover/competitor:bg-yellow-900/50' :
+                                            'bg-red-100 dark:bg-red-900/30 group-hover/competitor:bg-red-200 dark:group-hover/competitor:bg-red-900/50'
+                                        }`}>
+                                          <TrendingUp className={`w-3 h-3 ${
+                                            data.competitorIndicator === 'higher' ? 'text-emerald-600 dark:text-emerald-400' :
+                                            data.competitorIndicator === 'competitive' ? 'text-yellow-600 dark:text-yellow-400' :
+                                            'text-red-600 dark:text-red-400'
+                                          }`} />
+                                          <div className={`w-1.5 h-1.5 rounded-full ${
+                                            data.competitorIndicator === 'higher' ? 'bg-emerald-500' :
+                                            data.competitorIndicator === 'competitive' ? 'bg-yellow-500' :
+                                            'bg-red-500'
+                                          }`}></div>
+                                        </div>
                                       </div>
                                     </div>
                                   )}
@@ -5215,37 +5144,43 @@ export default function RevenuePage() {
                                         onMouseEnter={(e) => showRichTooltip('general', { 
                                           type: 'restrictions', 
                                           restrictions: data.restrictions,
-                                          count: data.restrictions.length
+                                          count: data.restrictions.length 
                                         }, e)}
                                         onMouseLeave={handleTooltipMouseLeave}
                                       >
-                                        <Lock className="w-3 h-3 text-orange-500 tooltip-icon" />
+                                        <Lock className="w-3 h-3 text-orange-500" />
                                       </div>
                                     )}
-                                    
+                                    {(() => {
+                                      const restrictionData = getRestrictionTooltipData(roomType.name, product.type, dates[dateIndex]?.dateStr || '');
+                                      const isCloseout = isCloseoutApplied(roomType.name, product.type, dates[dateIndex]?.dateStr || '');
+                                      
+                                      return restrictionData ? (
+                                        <div 
+                                          className="p-2 cursor-pointer rounded-md hover:bg-gray-100/50 dark:hover:bg-gray-700/50 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
+                                          onMouseEnter={(e) => showRichTooltip('general', restrictionData, e)}
+                                          onMouseLeave={handleTooltipMouseLeave}
+                                        >
+                                          {isCloseout ? (
+                                            <X className="w-3 h-3 text-red-600" />
+                                          ) : (
+                                            <Lock className="w-3 h-3 text-orange-500" />
+                                          )}
+                                        </div>
+                                      ) : null;
+                                    })()}
                                     {data.aiInsights && data.aiInsights.length > 0 && (
                                       <div 
-                                        className="tooltip-icon-area"
+                                        className="p-2 cursor-pointer rounded-md hover:bg-gray-100/50 dark:hover:bg-gray-700/50 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
                                         onMouseEnter={(e) => showRichTooltip('ai', data.aiInsights, e)}
                                         onMouseLeave={handleTooltipMouseLeave}
                                       >
-                                        <Brain className="w-3 h-3 text-blue-500 tooltip-icon" />
+                                        <Bot className="w-3 h-3 text-purple-500" />
                                       </div>
                                     )}
-                                    
-                                    {data.competitorData && (
+                                    {dates[dateIndex]?.events && dates[dateIndex].events.length > 0 && (
                                       <div 
-                                        className="tooltip-icon-area"
-                                        onMouseEnter={(e) => showRichTooltip('competitor', data.competitorData, e)}
-                                        onMouseLeave={handleTooltipMouseLeave}
-                                      >
-                                        <Users className="w-3 h-3 text-purple-500 tooltip-icon" />
-                                      </div>
-                                    )}
-                                    
-                                    {dates[dateIndex]?.events.length > 0 && (
-                                      <div 
-                                        className="tooltip-icon-area"
+                                        className="p-2 cursor-pointer rounded-md hover:bg-gray-100/50 dark:hover:bg-gray-700/50 transition-colors min-w-[32px] min-h-[32px] flex items-center justify-center"
                                         onMouseEnter={(e) => showRichTooltip('event', dates[dateIndex].events, e)}
                                         onMouseLeave={handleTooltipMouseLeave}
                                       >
@@ -5297,37 +5232,40 @@ export default function RevenuePage() {
               </div>
             </div>
           ) : (
-            // Enhanced Monthly View - World-Class Component
-            <MonthlyCalendarView
-              selectedRoomTypeForMonthly={selectedRoomTypeForMonthly}
-              setSelectedRoomTypeForMonthly={setSelectedRoomTypeForMonthly}
-              selectedRatePlanForMonthly={selectedRatePlanForMonthly}
-              setSelectedRatePlanForMonthly={setSelectedRatePlanForMonthly}
-              monthlyViewDate={monthlyViewDate}
-              setMonthlyViewDate={setMonthlyViewDate}
-              sampleRoomTypes={sampleRoomTypes}
-              getApplicableRestrictions={getApplicableRestrictions}
-              isCloseoutApplied={isCloseoutApplied}
-              getRestrictionTooltipData={getRestrictionTooltipData}
-              getCellRestrictionClasses={getCellRestrictionClasses}
-              showRichTooltip={showRichTooltip}
-              hideRichTooltip={hideRichTooltip}
-              handleCellClick={handleCellClick}
-              handleCellDoubleClick={handleCellDoubleClick}
-              handleInventoryClick={handleInventoryClick}
-              handleInventoryDoubleClick={handleInventoryDoubleClick}
-              startInlineEdit={startInlineEdit}
-              inlineEdit={inlineEdit}
-              handleInlineKeyDown={handleInlineKeyDown}
-              setInlineEdit={setInlineEdit}
-              inlineInputRef={inlineInputRef}
-              sampleInsights={sampleInsights}
-              dates={dates}
-              sampleEvents={sampleEvents}
-              dateOffset={dateOffset}
-              calculateSmartInventoryStatus={calculateSmartInventoryStatus}
-              seededRandom={seededRandom}
-            />
+            // Monthly View - New Component
+            <div className="bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-700 p-8">
+              <div className="text-center space-y-4">
+                <div className="w-16 h-16 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center mx-auto">
+                  <Calendar className="w-8 h-8 text-blue-600 dark:text-blue-400" />
+                </div>
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-white">Monthly View</h3>
+                <p className="text-gray-600 dark:text-gray-400 max-w-md mx-auto">
+                  Monthly view with calendar-based revenue management, bulk operations, and strategic planning tools.
+                </p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
+                  <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <BarChart className="w-8 h-8 text-blue-600 dark:text-blue-400 mb-3" />
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Monthly Revenue Overview</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Track performance across entire months with trend analysis</p>
+                  </div>
+                  <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Target className="w-8 h-8 text-green-600 dark:text-green-400 mb-3" />
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Strategic Planning</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Set monthly targets and implement seasonal strategies</p>
+                  </div>
+                  <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                    <Package className="w-8 h-8 text-orange-600 dark:text-orange-400 mb-3" />
+                    <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Bulk Operations</h4>
+                    <p className="text-sm text-gray-600 dark:text-gray-400">Apply changes across multiple dates and room types</p>
+                  </div>
+                </div>
+                <div className="mt-8">
+                  <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors">
+                    Coming Soon
+                  </button>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
@@ -5463,7 +5401,7 @@ export default function RevenuePage() {
         <EventLogsPanel />
 
         {/* Global News Insights Panel */}
-        <GlobalNewsInsights 
+        <GlobalNewsInsights
           isOpen={isGlobalNewsOpen}
           onClose={() => setIsGlobalNewsOpen(false)}
           insights={globalNewsInsights}
@@ -5473,20 +5411,6 @@ export default function RevenuePage() {
           onRefreshInsights={refreshNewsInsights}
           isLoading={isNewsLoading}
         />
-
-        {/* Promotion Assistant - AI-Powered Promotion Management */}
-        <PromotionAssistant isDark={isDark} />
-
-        {/* Publish Confirmation Modal */}
-        {showPublishConfirmation && (
-          <PublishConfirmation
-            isOpen={showPublishConfirmation}
-            onClose={() => setShowPublishConfirmation(false)}
-            onConfirm={handlePublishConfirmed}
-            changes={changes}
-            isDark={isDark}
-          />
-        )}
 
         {/* Tooltip Components - Essential for hover functionality */}
         {hoveredEvent && (
@@ -5515,24 +5439,67 @@ export default function RevenuePage() {
         <div className="fixed bottom-6 right-6 z-50">
           <button 
             onClick={() => setIsGlobalNewsOpen(true)}
-            className="group relative w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 animate-pulse"
+            className={`group relative flex items-center justify-center w-16 h-16 rounded-full shadow-2xl transition-all duration-300 transform hover:scale-110 active:scale-95 ${
+              isNewsLoading 
+                ? 'bg-gradient-to-br from-orange-500 to-red-500 animate-pulse' 
+                : newsStats.critical > 0
+                ? 'bg-gradient-to-br from-red-600 via-pink-600 to-red-700 hover:from-red-700 hover:via-pink-700 hover:to-red-800 animate-pulse'
+                : newsStats.actionable > 0
+                ? 'bg-gradient-to-br from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:via-teal-700 hover:to-emerald-800'
+                : 'bg-gradient-to-br from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:via-indigo-700 hover:to-blue-800'
+            } text-white overflow-hidden`}
+            title="Agentic AI - Global News Insights"
           >
-            <Brain className="w-8 h-8" />
+            {/* Background Pattern */}
+            <div className="absolute inset-0 opacity-20">
+              <div className="absolute inset-0 bg-gradient-to-br from-white/10 to-transparent"></div>
+              <div className="absolute top-2 left-2 w-3 h-3 bg-white/20 rounded-full animate-ping"></div>
+              <div className="absolute bottom-3 right-3 w-2 h-2 bg-white/30 rounded-full animate-pulse delay-1000"></div>
+            </div>
             
-            {/* Notification Badge for Critical Insights */}
+            {/* Main Icon */}
+            <div className="relative z-10 flex items-center justify-center">
+              {isNewsLoading ? (
+                <div className="animate-spin">
+                  <Globe className="w-7 h-7" />
+                </div>
+              ) : (
+                <Globe className="w-7 h-7 group-hover:animate-pulse" />
+              )}
+            </div>
+
+            {/* Critical Insights Badge */}
             {newsStats.critical > 0 && (
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 rounded-full flex items-center justify-center text-xs font-bold animate-bounce">
-                {newsStats.critical}
+              <div className="absolute -top-2 -right-2 flex items-center justify-center w-8 h-8 bg-red-500 text-white text-xs font-bold rounded-full border-2 border-white shadow-lg animate-bounce">
+                {newsStats.critical > 99 ? '99+' : newsStats.critical}
               </div>
             )}
-            
-            {/* Pulsing Ring Effect */}
-            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 opacity-75 animate-ping"></div>
-            
-            {/* Tooltip */}
-            <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-              Global AI Insights
+
+            {/* Actionable Insights Badge */}
+            {newsStats.actionable > 0 && newsStats.critical === 0 && (
+              <div className="absolute -top-2 -right-2 flex items-center justify-center w-7 h-7 bg-emerald-500 text-white text-xs font-bold rounded-full border-2 border-white shadow-lg">
+                {newsStats.actionable > 99 ? '99+' : newsStats.actionable}
+              </div>
+            )}
+
+            {/* Hover Tooltip */}
+            <div className="absolute bottom-full right-0 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+              <div className="bg-gray-900 dark:bg-gray-700 text-white text-sm px-3 py-2 rounded-lg shadow-lg whitespace-nowrap">
+                <div className="font-semibold">Agentic AI</div>
+                <div className="text-xs text-gray-300">
+                  {isNewsLoading ? 'Analyzing global news...' :
+                   newsStats.critical > 0 ? `${newsStats.critical} critical insights` :
+                   newsStats.actionable > 0 ? `${newsStats.actionable} recommendations` :
+                   'Monitoring global markets'}
+                </div>
+                <div className="absolute top-full right-4 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900 dark:border-t-gray-700"></div>
+              </div>
             </div>
+
+            {/* Pulse Ring for Critical Alerts */}
+            {newsStats.critical > 0 && (
+              <div className="absolute inset-0 rounded-full border-4 border-red-400 animate-ping opacity-30"></div>
+            )}
           </button>
         </div>
 
