@@ -27,7 +27,8 @@ import GlobalNewsInsights from '../components/GlobalNewsInsights';
 import { MonthlyCalendarView } from '../components/MonthlyCalendarView';
 import { useGlobalNewsInsights } from '../hooks/useGlobalNewsInsights';
 import PromotionAssistant from '../components/PromotionAssistant';
-import PublishConfirmation from '../components/PublishConfirmation';
+import { InventoryStatusIconInline, getFixedCompetitorData } from '../components/MainPageFixes';
+import CompactInventoryStatus from '../components/CompactInventoryStatus';import PublishConfirmation from '../components/PublishConfirmation';
 
 // Enhanced Types for Modern Interface
 interface AIInsight {
@@ -1359,12 +1360,12 @@ export default function RevenuePage() {
         </div>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{event.description}</p>
         <div className="text-xs space-y-1">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center justify-center gap-2">
             <MapPin className="w-3 h-3" />
             <span>{event.venue}</span>
           </div>
           {event.attendees && (
-            <div className="flex items-center gap-1">
+            <div className="flex items-center justify-center gap-2">
               <Users className="w-3 h-3" />
               <span>{event.attendees.toLocaleString()} attendees</span>
             </div>
@@ -1668,7 +1669,7 @@ export default function RevenuePage() {
                     <div key={index} className="bg-white/5 rounded-lg p-2 border border-white/10">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
                             competitor.trend === 'up' ? 'bg-emerald-500' :
                             competitor.trend === 'down' ? 'bg-red-500' : 'bg-yellow-500'
                           }`}></div>
@@ -4415,22 +4416,22 @@ export default function RevenuePage() {
                               {log.description}
                             </h4>
                             <div className="flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center justify-center gap-2">
                                 <User className="w-3 h-3" />
                                 {log.userName}
                               </span>
-                              <span className="flex items-center gap-1">
+                              <span className="flex items-center justify-center gap-2">
                                 <Clock className="w-3 h-3" />
                                 {formatTimeAgo(log.timestamp)}
                               </span>
                               {log.roomType && (
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center justify-center gap-2">
                                   <Building className="w-3 h-3" />
                                   {log.roomType}
                                 </span>
                               )}
                               {log.ratePlan && (
-                                <span className="flex items-center gap-1">
+                                <span className="flex items-center justify-center gap-2">
                                   <Tag className="w-3 h-3" />
                                   {log.ratePlan}
                                 </span>
@@ -4987,8 +4988,6 @@ export default function RevenuePage() {
                                    ${inv.isChanged ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600' : ''}`}
                           onClick={() => handleInventoryClick(roomType.name, inv.inventory, dateIndex)}
                           onDoubleClick={(e) => handleInventoryDoubleClick(roomType.id, dateIndex, inv.inventory, e)}
-                          onMouseEnter={(e) => handleTooltipShow(`${inv.inventory} rooms available - Click to edit, Double-click for inline edit`, e)}
-                          onMouseLeave={handleTooltipHide}
                         >
                           <div className="flex flex-col items-center justify-center h-full p-3">
                             {/* Change Indicator */}
@@ -5030,7 +5029,11 @@ export default function RevenuePage() {
                                 )}
 
                                 {/* Smart Status Indicator - Enhanced */}
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center justify-center gap-2">
+                                  {/* Restriction Indicator - Inline */}
+                                  {inv.restrictions && inv.restrictions.length > 0 && (
+                                    <Lock className="w-3 h-3 text-orange-500 opacity-80 hover:opacity-100 transition-opacity duration-200" />
+                                  )}
                                   {(() => {
                                     const smartStatus = calculateSmartInventoryStatus(
                                       inv.inventory, 
@@ -5041,15 +5044,6 @@ export default function RevenuePage() {
                                     
                                     return (
                                       <>
-                                        <div 
-                                          className={`w-2 h-2 rounded-full ${
-                                            smartStatus.level === 'critical' ? 'bg-red-500 animate-pulse' :
-                                            smartStatus.level === 'low' ? 'bg-orange-500' :
-                                            smartStatus.level === 'optimal' ? 'bg-green-500' :
-                                            smartStatus.level === 'oversupply' ? 'bg-blue-500' :
-                                            'bg-purple-500'
-                                          }`} 
-                                        />
                                         <div 
                                           className="cursor-pointer"
                                           onMouseEnter={(e) => showRichTooltip('inventory_analysis', { 
@@ -5066,7 +5060,7 @@ export default function RevenuePage() {
                                             smartStatus.level === 'oversupply' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                             'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                                           }`}>
-                                            {smartStatus.displayText}
+                                            <CompactInventoryStatus status={smartStatus} inventory={inv.inventory} onMouseEnter={(e, tooltipData) => showRichTooltip("inventory_analysis", { status: smartStatus, inventory: inv.inventory, roomType: roomType.name }, e)} onMouseLeave={hideRichTooltip} />
                                           </span>
                                           {smartStatus.urgency === 'immediate' && (
                                             <div className="w-1 h-1 bg-red-500 rounded-full animate-ping absolute -top-1 -right-1"></div>
@@ -5089,20 +5083,6 @@ export default function RevenuePage() {
                                   <Edit3 className="w-3 h-3 text-blue-500" />
                                 </div>
                                 
-                                {/* Restriction Indicator */}
-                                {inv.restrictions && inv.restrictions.length > 0 && (
-                                  <div 
-                                    className="absolute top-1 left-1 tooltip-icon-area opacity-80 hover:opacity-100 transition-opacity duration-200"
-                                    onMouseEnter={(e) => showRichTooltip('general', { 
-                                      type: 'restrictions', 
-                                      restrictions: inv.restrictions || [],
-                                      count: inv.restrictions?.length || 0
-                                    }, e)}
-                                    onMouseLeave={handleTooltipMouseLeave}
-                                  >
-                                    <Lock className="w-3 h-3 text-orange-500 tooltip-icon" />
-                                  </div>
-                                )}
                                 
                                 {/* Double-click hint */}
                                 <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
@@ -5193,12 +5173,7 @@ export default function RevenuePage() {
                                           ? 'bg-yellow-100 dark:bg-yellow-900/30 group-hover/competitor:bg-yellow-200 dark:group-hover/competitor:bg-yellow-900/50' :
                                           'bg-red-100 dark:bg-red-900/30 group-hover/competitor:bg-red-200 dark:group-hover/competitor:bg-red-900/50'
                                       }`}>
-                                        <TrendingUp className={`w-3 h-3 ${
-                                          data.competitorIndicator === 'higher' ? 'text-emerald-600 dark:text-emerald-400' :
-                                          data.competitorIndicator === 'competitive' ? 'text-yellow-600 dark:text-yellow-400' :
-                                          'text-red-600 dark:text-red-400'
-                                        }`} />
-                                        <div className={`w-1.5 h-1.5 rounded-full ${
+                                        <div className={`w-2 h-2 rounded-full ${
                                           data.competitorIndicator === 'higher' ? 'bg-emerald-500' :
                                           data.competitorIndicator === 'competitive' ? 'bg-yellow-500' :
                                           'bg-red-500'
@@ -5236,7 +5211,7 @@ export default function RevenuePage() {
                                     {data.competitorData && (
                                       <div 
                                         className="tooltip-icon-area"
-                                        onMouseEnter={(e) => showRichTooltip('competitor', data.competitorData, e)}
+                                        onMouseEnter={(e) => showRichTooltip('competitor', { ...data.competitorData, currentPrice: data.rate }, e)}
                                         onMouseLeave={handleTooltipMouseLeave}
                                       >
                                         <Users className="w-3 h-3 text-purple-500 tooltip-icon" />
@@ -5254,16 +5229,6 @@ export default function RevenuePage() {
                                     )}
                                   </div>
                                   
-                                  {/* Risk & Confidence */}
-                                  <div className="text-xs space-y-1">
-                                    <div className={`px-1 py-0.5 rounded text-xs ${
-                                      data.riskLevel === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                      data.riskLevel === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
-                                      'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                                    } ${data.riskLevel === 'low' ? 'hidden' : ''}`}>
-                                      {data.riskLevel.toUpperCase()}
-                                    </div>
-                                  </div>
                                 </>
                               )}
                             </div>

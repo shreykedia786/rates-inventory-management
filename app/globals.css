@@ -186,8 +186,16 @@ body {
 }
 
 .grid-cell {
-  @apply relative min-h-[80px] flex items-center justify-center border border-gray-200 dark:border-gray-700 
+  @apply relative flex items-center justify-center border border-gray-200 dark:border-gray-700 
          bg-white dark:bg-gray-800 transition-all duration-200;
+  /* Fixed dimensions for symmetric grid */
+  height: 80px;
+  width: 120px;
+  min-height: 80px;
+  max-height: 80px;
+  min-width: 120px;
+  max-width: 120px;
+  overflow: hidden;
 }
 
 .grid-cell:hover {
@@ -1348,7 +1356,14 @@ body {
 
 .grid-cell {
   position: relative;
+  /* Fixed dimensions for symmetric grid */
+  height: 80px;
+  width: 120px;
   min-height: 80px;
+  max-height: 80px;
+  min-width: 120px;
+  max-width: 120px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1507,7 +1522,14 @@ body {
   }
   
   .grid-cell {
+    /* Fixed dimensions for symmetric grid on mobile */
+    height: 60px;
+    width: 100px;
     min-height: 60px;
+    max-height: 60px;
+    min-width: 100px;
+    max-width: 100px;
+    overflow: hidden;
     padding: 4px;
   }
 }

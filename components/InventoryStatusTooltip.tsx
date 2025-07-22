@@ -52,9 +52,17 @@ const getFactorIcon = (factor: string) => {
   }
 };
 
-const getFactorColor = (value: number | string, type: string) => {
+const getFactorColor = (value: number | string, type: string, inventoryLevel?: string) => {
   if (type === 'demandPace' && typeof value === 'number') {
-    return value > 0 ? 'text-green-400' : 'text-red-400';
+    // For critical inventory, even negative pace might not be terrible (less pressure)
+    // For oversupply, positive pace is very good news
+    if (inventoryLevel === 'critical') {
+      return value > 5 ? 'text-red-400' : value > -5 ? 'text-yellow-400' : 'text-green-400';
+    } else if (inventoryLevel === 'oversupply') {
+      return value > 0 ? 'text-green-400' : value > -10 ? 'text-yellow-400' : 'text-red-400';
+    } else {
+      return value > 0 ? 'text-green-400' : 'text-red-400';
+    }
   }
   if (type === 'competitorPosition') {
     return value === 'advantage' ? 'text-green-400' : 'text-orange-400';
@@ -65,7 +73,7 @@ const getFactorColor = (value: number | string, type: string) => {
   }
   if (type === 'seasonalTrend') {
     return value === 'peak' ? 'text-green-400' : 
-           value === 'shoulder' ? 'text-yellow-400' : 'text-gray-400';
+           value === 'shoulder' ? 'text-yellow-400' : 'text-orange-400'; // off-peak is concerning, not neutral
   }
   return 'text-gray-400';
 };
@@ -78,6 +86,32 @@ const getFactorDisplayValue = (value: number | string, type: string) => {
     return value.charAt(0).toUpperCase() + value.slice(1);
   }
   return value.toString();
+};
+
+const getFactorExplanation = (key: string, value: number | string, inventoryLevel: string) => {
+  if (key === 'demandPace' && typeof value === 'number') {
+    if (inventoryLevel === 'critical') {
+      return value > 5 ? 'Very high demand pressure' : value > -5 ? 'Manageable demand' : 'Demand cooling off';
+    } else if (inventoryLevel === 'oversupply') {
+      return value > 0 ? 'Demand improving' : value > -10 ? 'Demand declining' : 'Demand very weak';
+    } else {
+      return value > 0 ? 'Growing demand' : 'Declining demand';
+    }
+  }
+  if (key === 'competitorPosition') {
+    return value === 'advantage' ? 'Better positioned vs competitors' : 'Competitors performing better';
+  }
+  if (key === 'eventImpact') {
+    if (value === 'positive') return 'Events driving demand';
+    if (value === 'negative') return 'Events hurting demand';
+    return 'No significant events';
+  }
+  if (key === 'seasonalTrend') {
+    if (value === 'peak') return 'Peak season demand';
+    if (value === 'shoulder') return 'Moderate season';
+    return 'Off-peak period';
+  }
+  return '';
 };
 
 export default function InventoryStatusTooltip({
@@ -162,21 +196,31 @@ export default function InventoryStatusTooltip({
             <BarChart3 className="w-3 h-3" />
             Key Factors
           </div>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {Object.entries(status.factors).map(([key, value]) => {
               const FactorIcon = getFactorIcon(key);
-              const color = getFactorColor(value, key);
+              const color = getFactorColor(value, key, status.level);
               const displayValue = getFactorDisplayValue(value, key);
+              const explanation = getFactorExplanation(key, value, status.level);
               
               return (
-                <div key={key} className="flex items-center gap-2 text-xs">
-                  <FactorIcon className={`w-3 h-3 ${color}`} />
-                  <span className="text-gray-400 capitalize">
-                    {key.replace(/([A-Z])/g, ' $1').toLowerCase()}:
-                  </span>
-                  <span className={`font-medium ${color}`}>
-                    {displayValue}
-                  </span>
+                <div key={key} className="flex items-start gap-2 text-xs">
+                  <FactorIcon className={`w-3 h-3 ${color} mt-0.5 flex-shrink-0`} />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-gray-400 capitalize">
+                        {key.replace(/([A-Z])/g, ' $1').toLowerCase()}:
+                      </span>
+                      <span className={`font-medium ${color}`}>
+                        {displayValue}
+                      </span>
+                    </div>
+                    {explanation && (
+                      <div className="text-gray-500 text-xs mt-0.5 italic">
+                        {explanation}
+                      </div>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -13,7 +13,7 @@ export default function InventoryStatusDemo() {
     data?: any;
   }>({ isVisible: false, position: { x: 0, y: 0 } });
 
-  // Mock inventory status data
+  // Mock inventory status data - FIXED LOGICAL INCONSISTENCIES
   const mockStatuses: InventoryStatus[] = [
     {
       level: 'critical',
@@ -24,10 +24,10 @@ export default function InventoryStatusDemo() {
       urgency: 'immediate',
       confidence: 95,
       factors: {
-        demandPace: 15.5,
-        competitorPosition: 'disadvantage',
-        eventImpact: 'positive',
-        seasonalTrend: 'peak'
+        demandPace: 15.5,           // High positive demand - makes sense for critical
+        competitorPosition: 'advantage',  // FIXED: We have advantage because competitors likely sold out too
+        eventImpact: 'positive',    // Event driving demand - logical
+        seasonalTrend: 'peak'       // Peak season - consistent with high demand
       }
     },
     {
@@ -35,14 +35,14 @@ export default function InventoryStatusDemo() {
       displayText: 'slow pace',
       colorClass: 'bg-orange-500',
       actionRequired: 'Consider promotional pricing',
-      reasoning: ['Below optimal inventory levels', 'Moderate demand', 'Monitor closely'],
+      reasoning: ['Below optimal inventory levels', 'Declining demand trend', 'Monitor booking pace'], // FIXED: Now matches negative pace
       urgency: 'monitor',
       confidence: 78,
       factors: {
-        demandPace: -3.2,
-        competitorPosition: 'advantage',
-        eventImpact: 'none',
-        seasonalTrend: 'shoulder'
+        demandPace: -8.2,           // FIXED: More significant negative pace to justify "slow pace"
+        competitorPosition: 'disadvantage', // We're struggling vs competitors
+        eventImpact: 'none',        // No special events
+        seasonalTrend: 'shoulder'   // Shoulder season - reasonable
       }
     },
     {
@@ -50,14 +50,14 @@ export default function InventoryStatusDemo() {
       displayText: 'good pace',
       colorClass: 'bg-green-500',
       actionRequired: 'Monitor and maintain strategy',
-      reasoning: ['Healthy inventory levels', 'Good demand balance', 'Competitive positioning'],
+      reasoning: ['Healthy inventory levels', 'Strong booking pace', 'Competitive positioning'], // FIXED: More positive language
       urgency: 'stable',
       confidence: 88,
       factors: {
-        demandPace: 8.7,
-        competitorPosition: 'advantage',
-        eventImpact: 'none',
-        seasonalTrend: 'shoulder'
+        demandPace: 12.4,           // FIXED: Positive pace for "good pace"
+        competitorPosition: 'advantage',  // We're doing well vs competitors
+        eventImpact: 'positive',    // FIXED: Some positive event impact supporting good pace
+        seasonalTrend: 'shoulder'   // Shoulder season but still performing well
       }
     },
     {
@@ -65,14 +65,14 @@ export default function InventoryStatusDemo() {
       displayText: 'poor demand',
       colorClass: 'bg-purple-500',
       actionRequired: 'Aggressive pricing needed',
-      reasoning: ['High inventory levels', 'Low demand', 'Market oversupply'],
+      reasoning: ['High inventory levels', 'Weak booking pace', 'Market oversupply'], // FIXED: Consistent language
       urgency: 'monitor',
       confidence: 72,
       factors: {
-        demandPace: -12.3,
-        competitorPosition: 'disadvantage',
-        eventImpact: 'negative',
-        seasonalTrend: 'off-peak'
+        demandPace: -18.3,          // FIXED: Very negative pace for poor demand
+        competitorPosition: 'disadvantage', // Market struggling overall
+        eventImpact: 'none',        // FIXED: No event impact - oversupply is due to seasonal factor
+        seasonalTrend: 'off-peak'   // Off-peak season explains the oversupply
       }
     }
   ];
