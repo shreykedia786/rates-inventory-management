@@ -28,7 +28,7 @@ import { MonthlyCalendarView } from '../components/MonthlyCalendarView';
 import { useGlobalNewsInsights } from '../hooks/useGlobalNewsInsights';
 import PromotionAssistant from '../components/PromotionAssistant';
 import { InventoryStatusIconInline, getFixedCompetitorData } from '../components/MainPageFixes';
-import CompactInventoryStatus from '../components/CompactInventoryStatus';import PublishConfirmation from '../components/PublishConfirmation';
+import PublishConfirmation from '../components/PublishConfirmation';
 
 // Enhanced Types for Modern Interface
 interface AIInsight {
@@ -2102,7 +2102,7 @@ export default function RevenuePage() {
               ],
               marketPosition: 'competitive' as const,
               averageRate: Math.round((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)),
-              priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4))) / ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)) * 100),
+              priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 85 + 120) / 4))) / ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)) * 100),
               marketShare: 23 + (i % 8)
             },
           }))
@@ -5060,7 +5060,7 @@ export default function RevenuePage() {
                                             smartStatus.level === 'oversupply' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                             'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
                                           }`}>
-                                            <CompactInventoryStatus status={smartStatus} inventory={inv.inventory} onMouseEnter={(e, tooltipData) => showRichTooltip("inventory_analysis", { status: smartStatus, inventory: inv.inventory, roomType: roomType.name }, e)} onMouseLeave={hideRichTooltip} />
+                                            <InventoryStatusIconInline status={smartStatus} inventory={inv.inventory} onMouseEnter={(e, tooltipData) => showRichTooltip("inventory_analysis", { status: smartStatus, inventory: inv.inventory, roomType: roomType.name }, e)} onMouseLeave={hideRichTooltip} />
                                           </span>
                                           {smartStatus.urgency === 'immediate' && (
                                             <div className="w-1 h-1 bg-red-500 rounded-full animate-ping absolute -top-1 -right-1"></div>
