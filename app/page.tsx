@@ -30,6 +30,16 @@ import PromotionAssistant from '../components/PromotionAssistant';
 import { InventoryStatusIconInline, getFixedCompetitorData } from '../components/MainPageFixes';
 import PublishConfirmation from '../components/PublishConfirmation';
 
+// Import our standardized types for data consistency
+import { 
+  StandardizedRateData, 
+  AIRateRecommendation, 
+  RateChangeEvent, 
+  StandardizedCellData, 
+  RateSource 
+} from '../types/rate-consistency';
+import { useConsistentRateData } from '../hooks/useConsistentRateData';
+
 // Enhanced Types for Modern Interface
 interface AIInsight {
   id: string;
@@ -139,24 +149,33 @@ interface CompetitorData {
 }
 
 interface ProductData {
-  rate: number;
+  // NEW: Use standardized rate model for consistency (optional for backward compatibility)
+  rateData?: StandardizedRateData;
+  
+  // NEW: AI recommendation (single source of truth)
+  aiRecommendation?: AIRateRecommendation;
+  
+  // Additional product-specific data
   restrictions: any[];
   isWeekend: boolean;
   competitorIndicator?: 'higher' | 'lower' | 'competitive';
-  aiInsights: AIInsight[];
   riskLevel: 'low' | 'medium' | 'high';
-  confidenceScore: number;
-  originalRate?: number;
-  isChanged?: boolean;
-  lastModified?: Date;
   isActive: boolean;
   competitorData?: CompetitorData;
   eventImpact?: any;
-  aiApplied?: boolean;
-  autoApplied?: boolean;
-  aiSuggested?: boolean;
-  undoAvailable?: boolean;
-  undoExpiresAt?: Date;
+  
+  // Legacy fields for backward compatibility (mapped from rateData)
+  rate: number; // → rateData.finalRate
+  originalRate?: number; // → rateData.baseRate
+  isChanged?: boolean; // → rateData.hasUnsavedChanges
+  lastModified?: Date; // → rateData.lastModified
+  aiInsights: AIInsight[]; // → Legacy format
+  confidenceScore: number; // → aiRecommendation.confidence
+  aiApplied?: boolean; // → rateData.rateSource === 'ai_recommendation'
+  autoApplied?: boolean; // → rateData.rateSource === 'ai_auto_applied'
+  aiSuggested?: boolean; // → !!aiRecommendation
+  undoAvailable?: boolean; // → aiRecommendation.undoAvailable
+  undoExpiresAt?: Date; // → aiRecommendation.undoExpiresAt
 }
 
 interface Product {
