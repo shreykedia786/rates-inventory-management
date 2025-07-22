@@ -104,7 +104,6 @@ export function InventoryStatusIconInline({
       title={`${status.displayText} - ${status.confidence}% confidence`}
     >
       <Icon className={`w-3 h-3 ${config.color}`} />
-      <span className="text-xs font-medium">{inventory}</span>
       {status.urgency === 'immediate' && (
         <div className="w-1 h-1 bg-red-500 rounded-full animate-ping ml-1" />
       )}
