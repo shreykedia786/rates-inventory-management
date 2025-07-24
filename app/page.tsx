@@ -751,21 +751,56 @@ export default function RevenuePage() {
   // Comprehensive Sticky Column & Header Implementation
   useEffect(() => {
     const initializeStickyBehavior = () => {
-      // Use more specific selector for the rates grid scroll container
-      const scrollContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl .revenue-grid")?.parentElement;
+      console.log("🔍 Initializing sticky behavior...");
+      
+      // Try multiple selectors to find the scroll container
+      let scrollContainer = null;
+      
+      // Method 1: Direct class selector
+      scrollContainer = document.querySelector(".overflow-x-auto");
+      console.log("Method 1 - .overflow-x-auto found:", !!scrollContainer);
+      
+      // Method 2: More specific selector for rates grid
+      if (!scrollContainer) {
+        scrollContainer = document.querySelector(".bg-white.rounded-xl.overflow-x-auto");
+        console.log("Method 2 - specific selector found:", !!scrollContainer);
+      }
+      
+      // Method 3: Find by revenue-grid parent
+      if (!scrollContainer) {
+        const revenueGrid = document.querySelector(".revenue-grid");
+        scrollContainer = revenueGrid?.parentElement;
+        console.log("Method 3 - revenue-grid parent found:", !!scrollContainer);
+      }
+      
       const dateHeaderRow = document.querySelector(".grid.gap-1");
-      const tableContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl");
+      const tableContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl, .bg-white.rounded-xl");
       const mainHeader = document.querySelector(".sticky-header");
       
-      if (!scrollContainer || !dateHeaderRow || !tableContainer || !mainHeader) {
-        console.log("Sticky elements not found:", { scrollContainer, dateHeaderRow, tableContainer, mainHeader });
+      console.log("Elements found:", {
+        scrollContainer: !!scrollContainer,
+        dateHeaderRow: !!dateHeaderRow,
+        tableContainer: !!tableContainer,
+        mainHeader: !!mainHeader
+      });
+      
+      if (!scrollContainer) {
+        console.error("❌ Scroll container not found! Available overflow-x-auto elements:");
+        document.querySelectorAll(".overflow-x-auto").forEach((el, index) => {
+          console.log(`  ${index}:`, el.className);
+        });
+        return;
+      }
+      
+      if (!dateHeaderRow || !tableContainer || !mainHeader) {
+        console.error("❌ Required elements missing");
         return;
       }
 
-      console.log("✅ Sticky behavior initialized - all elements found");
+      console.log("✅ All elements found, setting up sticky behavior");
 
       let isScrolling = false;
-      let ticking = false;
+      let lastScrollLeft = 0;
       
       const handleHorizontalScroll = () => {
         if (isScrolling) return;
@@ -774,28 +809,47 @@ export default function RevenuePage() {
         requestAnimationFrame(() => {
           const scrollLeft = scrollContainer.scrollLeft;
           
-          // Handle room type headers (sticky on horizontal scroll)
-          // CRITICAL FIX: Use negative translateX to keep columns fixed during scroll
-          const roomTypeHeaders = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
-          roomTypeHeaders.forEach((element) => {
-            if (element instanceof HTMLElement) {
-              element.style.transform = `translateX(-${scrollLeft}px)`; // FIXED: Negative to counteract scroll
-              element.style.position = "relative";
-              // Use lower z-index if dates are fixed to avoid overlap
-              const isDateFixed = document.querySelector(".date-header-fixed, .date-header-seamless");
-              element.style.zIndex = isDateFixed ? "15" : "25";
-              element.style.background = "var(--surface-secondary)";
-              element.style.borderRight = "2px solid var(--primary-light)";
-              element.style.boxShadow = scrollLeft > 0 ? "3px 0 12px rgba(37, 99, 235, 0.2)" : "none";
-              element.style.minWidth = "240px";
-              element.style.maxWidth = "240px";
-            }
-          });
-          
-          // CRITICAL: Update fixed date header position during horizontal scroll
-          const fixedDateHeader = document.querySelector(".date-header-fixed");
-          if (fixedDateHeader && fixedDateHeader instanceof HTMLElement) {
-            fixedDateHeader.style.transform = `translateX(-${scrollLeft}px)`;
+          if (scrollLeft !== lastScrollLeft) {
+            console.log("📏 Horizontal scroll detected:", scrollLeft);
+            lastScrollLeft = scrollLeft;
+            
+            // Find ALL room type elements
+            const roomTypeSelectors = [
+              ".room-type-header",
+              ".sticky-room-column", 
+              ".product-row-sticky",
+              "[class*='room-type']",
+              ".grid > div:first-child" // First column in each grid row
+            ];
+            
+            let roomTypeElements: HTMLElement[] = [];
+            roomTypeSelectors.forEach(selector => {
+              const elements = document.querySelectorAll(selector);
+              elements.forEach(el => {
+                if (el instanceof HTMLElement && !roomTypeElements.includes(el)) {
+                  roomTypeElements.push(el);
+                }
+              });
+            });
+            
+            console.log(`🎯 Found ${roomTypeElements.length} room type elements to make sticky`);
+            
+            // Apply sticky transform to all room type elements
+            roomTypeElements.forEach((element, index) => {
+              if (element instanceof HTMLElement) {
+                // Apply the sticky transform (move opposite to scroll)
+                element.style.transform = `translateX(-${scrollLeft}px)`;
+                element.style.position = "relative";
+                element.style.zIndex = "25";
+                element.style.background = "white";
+                element.style.borderRight = "2px solid #3b82f6";
+                element.style.boxShadow = scrollLeft > 0 ? "2px 0 8px rgba(0,0,0,0.1)" : "none";
+                element.style.minWidth = "240px";
+                element.style.maxWidth = "240px";
+                
+                console.log(`  ✓ Applied sticky transform to element ${index}:`, element.className.substring(0, 50));
+              }
+            });
           }
           
           isScrolling = false;
@@ -805,7 +859,6 @@ export default function RevenuePage() {
       const handleVerticalScroll = () => {
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
         const tableRect = tableContainer.getBoundingClientRect();
-        // Calculate actual header height dynamically
         const actualHeaderHeight = mainHeader ? mainHeader.getBoundingClientRect().height : 88;
         
         // Make date headers sticky when table scrolls past viewport top
@@ -814,7 +867,7 @@ export default function RevenuePage() {
           dateHeaderRow.style.top = `${actualHeaderHeight}px`;
           dateHeaderRow.style.left = "0";
           dateHeaderRow.style.right = "0";
-          dateHeaderRow.style.zIndex = "1000"; // Increased z-index to stay above room columns
+          dateHeaderRow.style.zIndex = "1000";
           dateHeaderRow.style.background = "white";
           dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
           dateHeaderRow.style.backdropFilter = "blur(8px)";
@@ -822,18 +875,19 @@ export default function RevenuePage() {
           dateHeaderRow.style.margin = "0";
           dateHeaderRow.classList.add("date-header-fixed");
 
-          // CRITICAL: Synchronize horizontal scroll with main content
+          // Synchronize horizontal scroll with main content
           const currentScrollLeft = scrollContainer.scrollLeft;
           dateHeaderRow.style.transform = `translateX(-${currentScrollLeft}px)`;
           dateHeaderRow.style.width = `${scrollContainer.scrollWidth}px`;
           dateHeaderRow.style.minWidth = `${scrollContainer.scrollWidth}px`;
           dateHeaderRow.style.overflowX = "hidden";
 
-          // CRITICAL: Lower z-index for room type elements to prevent overlap
+          // Lower z-index for room type elements to prevent overlap
           const roomTypeElements = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
           roomTypeElements.forEach((element) => {
             if (element instanceof HTMLElement) {
               element.classList.add("dates-fixed");
+              element.style.zIndex = "15"; // Lower than date header
             }
           });
           
@@ -859,44 +913,59 @@ export default function RevenuePage() {
           dateHeaderRow.style.overflowX = "";
           dateHeaderRow.classList.remove("date-header-fixed");
 
-          // CRITICAL: Restore normal z-index for room type elements
+          // Restore normal z-index for room type elements
           const roomTypeElements = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
           roomTypeElements.forEach((element) => {
             if (element instanceof HTMLElement) {
               element.classList.remove("dates-fixed");
+              element.style.zIndex = "25"; // Restore normal z-index
             }
           });
         }
       };
 
       const throttledVerticalScroll = () => {
-        if (!ticking) {
-          requestAnimationFrame(() => {
-            handleVerticalScroll();
-            ticking = false;
-          });
-          ticking = true;
-        }
+        requestAnimationFrame(handleVerticalScroll);
       };
 
-      // Add event listeners
+      // Add event listeners with detailed logging
+      console.log("🔗 Adding scroll event listeners...");
       scrollContainer.addEventListener("scroll", handleHorizontalScroll, { passive: true });
       window.addEventListener("scroll", throttledVerticalScroll, { passive: true });
       
-      // Initialize on mount
+      // Test initial setup
+      console.log("🧪 Testing initial setup...");
       handleHorizontalScroll();
       handleVerticalScroll();
+      
+      // Test if we can detect scroll
+      setTimeout(() => {
+        console.log("🧪 Forcing test scroll to verify event handling...");
+        const currentScroll = scrollContainer.scrollLeft;
+        scrollContainer.scrollLeft = 10;
+        setTimeout(() => {
+          scrollContainer.scrollLeft = currentScroll;
+        }, 100);
+      }, 500);
 
       // Cleanup function
       return () => {
+        console.log("🧹 Cleaning up sticky behavior event listeners");
         scrollContainer.removeEventListener("scroll", handleHorizontalScroll);
         window.removeEventListener("scroll", throttledVerticalScroll);
       };
     };
 
-    // Initialize after DOM is ready
-    const timer = setTimeout(initializeStickyBehavior, 300);
-    return () => clearTimeout(timer);
+    // Wait for DOM to be fully ready
+    const timer = setTimeout(() => {
+      console.log("⏰ Timer triggered, initializing sticky behavior...");
+      initializeStickyBehavior();
+    }, 500); // Increased delay to ensure DOM is ready
+    
+    return () => {
+      console.log("🧹 Component cleanup - clearing timer");
+      clearTimeout(timer);
+    };
   }, [currentView]); // Only depend on currentView to avoid dependency issues
 
 
@@ -4685,7 +4754,7 @@ export default function RevenuePage() {
   const calculateSmartInventoryStatus = (
     inventory: number, 
     roomTypeName: string, 
-    dateStr: string,
+    dateStr: string, 
     roomTypeCapacity: number = 100 // This should come from room type data
   ): SmartInventoryStatus => {
     // Create cache key for stable results
