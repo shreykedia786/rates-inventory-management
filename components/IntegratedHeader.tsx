@@ -115,7 +115,13 @@ export default function IntegratedHeader({
   const [showDropdown, setShowDropdown] = useState(false);
   const [activeTab, setActiveTab] = useState<'properties' | 'competitors'>('properties');
   const [selectedCompetitors, setSelectedCompetitors] = useState<Set<string>>(new Set(['comp-1', 'comp-2']));
+  const [isMounted, setIsMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Ensure proper client-side hydration
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -125,11 +131,14 @@ export default function IntegratedHeader({
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    if (isMounted) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [isMounted]);
 
   const handlePropertySelect = (property: Property) => {
+    console.log('Property selected:', property);
     setSelectedProperty(property);
     onPropertyChange?.(property);
     // Reset competitors for new property
@@ -139,6 +148,7 @@ export default function IntegratedHeader({
   };
 
   const handleCompetitorToggle = (competitorId: string) => {
+    console.log('Toggling competitor:', competitorId);
     const newSelected = new Set(selectedCompetitors);
     if (newSelected.has(competitorId)) {
       newSelected.delete(competitorId);
@@ -150,6 +160,11 @@ export default function IntegratedHeader({
     // Notify parent component
     const competitors = mockCompetitors[selectedProperty.id]?.filter(c => newSelected.has(c.id)) || [];
     onCompetitorsChange?.(competitors);
+  };
+
+  const handleDropdownClick = () => {
+    console.log('Dropdown button clicked, current state:', showDropdown);
+    setShowDropdown(!showDropdown);
   };
 
   const currentCompetitors = mockCompetitors[selectedProperty.id] || [];
@@ -172,7 +187,7 @@ export default function IntegratedHeader({
             {/* Property & Competitor Selector */}
             <div className="relative" ref={dropdownRef}>
               <button
-                onClick={() => setShowDropdown(!showDropdown)}
+                onClick={handleDropdownClick}
                 className="flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
                          rounded-xl px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all duration-200 
                          shadow-sm hover:shadow-md min-w-[320px]"
@@ -197,7 +212,7 @@ export default function IntegratedHeader({
               {/* Enhanced Dropdown */}
               {showDropdown && (
                 <div className="absolute top-full left-0 mt-2 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
-                              rounded-xl shadow-xl z-50 max-h-96 overflow-hidden">
+                              rounded-xl shadow-xl z-[9999] max-h-96 overflow-hidden">
                   
                   {/* Tab Navigation */}
                   <div className="flex border-b border-gray-200 dark:border-gray-700">
