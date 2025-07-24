@@ -777,7 +777,9 @@ export default function RevenuePage() {
             if (element instanceof HTMLElement) {
               element.style.transform = `translateX(${scrollLeft}px)`;
               element.style.position = "relative";
-              element.style.zIndex = "25";
+              // Use lower z-index if dates are fixed to avoid overlap
+              const isDateFixed = document.querySelector(".date-header-fixed, .date-header-seamless");
+              element.style.zIndex = isDateFixed ? "15" : "25";
               element.style.background = "var(--surface-secondary)";
               element.style.borderRight = "2px solid var(--primary-light)";
               element.style.boxShadow = scrollLeft > 0 ? "3px 0 12px rgba(37, 99, 235, 0.2)" : "none";
@@ -815,7 +817,7 @@ export default function RevenuePage() {
           dateHeaderRow.style.top = `${actualHeaderHeight}px`;
           dateHeaderRow.style.left = "0";
           dateHeaderRow.style.right = "0";
-          dateHeaderRow.style.zIndex = "999";
+          dateHeaderRow.style.zIndex = "1000"; // Increased z-index to stay above room columns
           dateHeaderRow.style.background = "white";
           dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
           dateHeaderRow.style.backdropFilter = "blur(8px)";
@@ -837,7 +839,14 @@ export default function RevenuePage() {
           if (document.documentElement.classList.contains("dark")) {
             dateHeaderRow.style.background = "rgb(17 24 39)";
             dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
-          }
+
+          // CRITICAL: Lower z-index for room type elements to prevent overlap
+          const roomTypeElements = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
+          roomTypeElements.forEach((element) => {
+            if (element instanceof HTMLElement) {
+              element.classList.add("dates-fixed");
+            }
+          });          }
         } else if (dateHeaderRow instanceof HTMLElement) {
           dateHeaderRow.style.position = "static";
           dateHeaderRow.style.top = "auto";
@@ -854,7 +863,14 @@ export default function RevenuePage() {
             dateHeaderRow.style.minWidth = "";
             dateHeaderRow.style.overflowX = "";
           dateHeaderRow.classList.remove("date-header-fixed");
-        }
+
+          // CRITICAL: Restore normal z-index for room type elements
+          const roomTypeElements = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
+          roomTypeElements.forEach((element) => {
+            if (element instanceof HTMLElement) {
+              element.classList.remove("dates-fixed");
+            }
+          });        }
       };
       // Add event listeners
       scrollContainer.addEventListener("scroll", handleHorizontalScroll, { passive: true });

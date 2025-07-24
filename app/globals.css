@@ -169,6 +169,11 @@ body {
   max-width: 240px !important;
 }
 
+/* CRITICAL: Lower z-index for sticky room columns when dates are fixed */
+.sticky-room-column.dates-fixed {
+  z-index: 12 !important;
+}
+
 .sticky-room-column:hover {
   box-shadow: 4px 0 12px rgba(37, 99, 235, 0.25) !important;
 }
@@ -226,6 +231,11 @@ body {
   max-width: 240px !important;
 }
 
+/* CRITICAL: Lower z-index for room type when dates are fixed */
+.room-type-header.dates-fixed {
+  z-index: 15 !important;
+}
+
 .dark .room-type-header {
   background: var(--surface-tertiary) !important;
   box-shadow: 2px 0 8px rgba(37, 99, 235, 0.3) !important;
@@ -241,6 +251,11 @@ body {
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08) !important;
   min-width: 240px !important;
   max-width: 240px !important;
+}
+
+/* CRITICAL: Lower z-index for product rows when dates are fixed */
+.product-row-sticky.dates-fixed {
+  z-index: 10 !important;
 }
 
 .dark .product-row-sticky {
@@ -313,7 +328,7 @@ body {
   top: 0 !important; /* Remove gap by attaching directly to top */
   left: 0 !important;
   right: 0 !important;
-  z-index: 999 !important;
+  z-index: 1000 !important; /* Increased to ensure it's above room type columns */
   background: var(--surface) !important;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
   padding: 0 1.5rem !important;
@@ -348,7 +363,7 @@ body {
   top: 0 !important;
   left: 0 !important;
   right: 0 !important;
-  z-index: 999 !important;
+  z-index: 1000 !important; /* Increased to ensure it's above room type columns */
   background: var(--surface) !important;
   box-shadow: none !important; /* Remove shadow to blend seamlessly */
   padding: 0 1.5rem !important;
