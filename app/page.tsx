@@ -722,8 +722,6 @@ export default function RevenuePage() {
   const [isPriceModalOpen, setIsPriceModalOpen] = useState(false);
   const [selectedInventory, setSelectedInventory] = useState<{room: string, inventory: number, dateIndex: number} | null>(null);
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
-  const [hoveredEvent, setHoveredEvent] = useState<Event | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [dateOffset, setDateOffset] = useState(0);
   
   // Monthly View State
@@ -750,6 +748,114 @@ export default function RevenuePage() {
     position: { x: number; y: number };
   } | null>(null);
   
+  // Comprehensive Sticky Column & Header Implementation
+  useEffect(() => {
+    const initializeStickyBehavior = () => {
+      const scrollContainer = document.querySelector(".overflow-x-auto");
+      const dateHeaderRow = document.querySelector(".grid.gap-1");
+      
+      if (!scrollContainer || !dateHeaderRow) return;
+
+      let isScrolling = false;
+      let ticking = false;
+      let lastScrollY = 0;      
+      const handleHorizontalScroll = () => {
+        if (isScrolling) return;
+        isScrolling = true;
+        
+        requestAnimationFrame(() => {
+          const scrollLeft = scrollContainer.scrollLeft;
+          
+          // Handle room type headers (sticky on horizontal scroll)
+          const roomTypeHeaders = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
+          roomTypeHeaders.forEach((element) => {
+            if (element instanceof HTMLElement) {
+              element.style.transform = `translateX(${scrollLeft}px)`;
+              element.style.position = "relative";
+              element.style.zIndex = "25";
+              element.style.background = "var(--surface-secondary)";
+              element.style.borderRight = "2px solid var(--primary-light)";
+              element.style.boxShadow = scrollLeft > 0 ? "3px 0 12px rgba(37, 99, 235, 0.2)" : "none";
+              element.style.minWidth = "240px";
+              element.style.maxWidth = "240px";
+            }
+          });
+          
+          isScrolling = false;
+        });
+      };
+
+      const handleVerticalScroll = () => {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const tableContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl");
+        const dateHeaderRow = document.querySelector(".grid.gap-1");
+        
+        if (!tableContainer || !dateHeaderRow) return;
+        
+        const tableRect = tableContainer.getBoundingClientRect();
+        const headerHeight = 100; // Account for page header
+        
+        // Make date headers sticky when table scrolls past viewport top
+        if (tableRect.top <= headerHeight && dateHeaderRow instanceof HTMLElement) {
+          dateHeaderRow.style.position = "fixed";
+          dateHeaderRow.style.top = `${headerHeight}px`;
+          dateHeaderRow.style.left = "0";
+          dateHeaderRow.style.right = "0";
+          dateHeaderRow.style.zIndex = "999";
+          dateHeaderRow.style.background = "white";
+          dateHeaderRow.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+          dateHeaderRow.style.padding = "0 1.5rem";
+          dateHeaderRow.style.margin = "0";
+          dateHeaderRow.classList.add("date-header-fixed");
+          
+          // Handle dark mode
+          if (document.documentElement.classList.contains("dark")) {
+            dateHeaderRow.style.background = "rgb(17 24 39)";
+            dateHeaderRow.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+          }
+        } else if (dateHeaderRow instanceof HTMLElement) {
+          dateHeaderRow.style.position = "static";
+          dateHeaderRow.style.top = "auto";
+          dateHeaderRow.style.left = "auto";
+          dateHeaderRow.style.right = "auto";
+          dateHeaderRow.style.zIndex = "auto";
+          dateHeaderRow.style.background = "";
+          dateHeaderRow.style.boxShadow = "none";
+          dateHeaderRow.style.padding = "";
+          dateHeaderRow.style.margin = "";
+          dateHeaderRow.classList.remove("date-header-fixed");
+        }
+      };
+      // Add event listeners
+      scrollContainer.addEventListener("scroll", handleHorizontalScroll, { passive: true });
+      const throttledVerticalScroll = () => {
+        if (!ticking) {
+          requestAnimationFrame(() => {
+            handleVerticalScroll();
+            ticking = false;
+          });
+          ticking = true;
+        }
+      };
+      window.addEventListener("scroll", throttledVerticalScroll, { passive: true });
+      
+      // Initial setup
+      handleHorizontalScroll();
+      handleVerticalScroll();
+
+      // Cleanup function
+      return () => {
+        scrollContainer.removeEventListener("scroll", handleHorizontalScroll);
+        window.removeEventListener("scroll", throttledVerticalScroll);
+      };
+    };
+
+    // Initialize after DOM is ready
+    const timer = setTimeout(initializeStickyBehavior, 300);
+    return () => clearTimeout(timer);
+  }, [currentView]); // Only depend on currentView to avoid dependency issues
+
+
   // Inline Editing State
   const [inlineEdit, setInlineEdit] = useState<{
     type: 'price' | 'inventory';
@@ -1324,105 +1430,9 @@ export default function RevenuePage() {
   };
 
   const dates = generateDates();
-
-  // Enhanced Event Tooltip Component
-  const EventTooltip = ({ event, position }: { event: Event; position: { x: number; y: number } }) => {
-    // Enhanced positioning logic
-    const calculateOptimalPosition = () => {
-      const viewportWidth = window.innerWidth;
-      const viewportHeight = window.innerHeight;
-      const tooltipWidth = 320; // tooltip max width
-      const tooltipHeight = 280; // estimated height
-      const spacing = 8; // consistent 8px spacing
-      
-      let x = position.x;
-      let y = position.y;
-      let placement = 'right';
-      
-      // Default to right placement with center alignment
-      if (x + spacing + tooltipWidth <= viewportWidth - 20) {
-        // Sufficient space on right
-        x = x + spacing;
-        placement = 'right';
-      } else {
-        // Flip to left
-        x = x - spacing - tooltipWidth;
-        placement = 'left';
-        // Ensure it doesn't go off left edge
-        if (x < 20) {
-          x = 20;
-          placement = 'top'; // fallback to top if needed
-        }
-      }
-      
-      // Center vertically relative to trigger
-      y = y - (tooltipHeight / 2);
-      
-      // Ensure tooltip stays within viewport bounds
-      if (y < 20) {
-        y = 20;
-      } else if (y + tooltipHeight > viewportHeight - 20) {
-        y = viewportHeight - tooltipHeight - 20;
-      }
-      
-      return { x, y, placement };
-    };
-
-    const { x, y, placement } = calculateOptimalPosition();
-    
-    return (
-      <div 
-        className="fixed z-[9997] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 max-w-sm"
-        style={{ 
-          left: `${x}px`, 
-          top: `${y}px`
-        }}
-      >
-        {/* Tooltip Arrow */}
-        {placement === 'right' && (
-          <div className="absolute left-0 top-1/2 transform -translate-x-full -translate-y-1/2">
-            <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-r-[8px] border-r-white dark:border-r-gray-800"></div>
-          </div>
-        )}
-        {placement === 'left' && (
-          <div className="absolute right-0 top-1/2 transform translate-x-full -translate-y-1/2">
-            <div className="w-0 h-0 border-t-[8px] border-t-transparent border-b-[8px] border-b-transparent border-l-[8px] border-l-white dark:border-l-gray-800"></div>
-          </div>
-        )}
-        
-        <div className="flex items-center gap-2 mb-2">
-          <div className={`w-3 h-3 rounded-full ${
-            event.impact === 'high' ? 'bg-red-500' :
-            event.impact === 'medium' ? 'bg-yellow-500' : 'bg-green-500'
-          }`} />
-          <h4 className="font-semibold text-gray-900 dark:text-white">{event.title}</h4>
-        </div>
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{event.description}</p>
-        <div className="text-xs space-y-1">
-          <div className="flex items-center justify-center gap-2">
-            <MapPin className="w-3 h-3" />
-            <span>{event.venue}</span>
-          </div>
-          {event.attendees && (
-            <div className="flex items-center justify-center gap-2">
-              <Users className="w-3 h-3" />
-              <span>{event.attendees.toLocaleString()} attendees</span>
-            </div>
-          )}
-          {event.historicalImpact && (
-            <div className="pt-2 border-t border-gray-200 dark:border-gray-600">
-              <div className="text-green-600 dark:text-green-400">
-                📈 Occupancy: +{event.historicalImpact.occupancyUplift}%
-              </div>
-              <div className="text-blue-600 dark:text-blue-400">
-                💰 ADR: +{event.historicalImpact.adrChange}%
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  // EventTooltip component REMOVED - Using unified RichTooltip system for consistency
+  // All event tooltips now use showRichTooltip('event', eventData, e) for premium styling
+  // This ensures consistent aesthetics across all tooltip types in the system
 
   // Enhanced Rich Tooltip Component - Microsoft Word Style
   const RichTooltip = ({ tooltip }: { tooltip: typeof richTooltip }) => {
@@ -2767,12 +2777,13 @@ export default function RevenuePage() {
   };
 
   const handleEventHover = (event: Event, e: React.MouseEvent) => {
-    setHoveredEvent(event);
-    setTooltipPosition({ x: e.clientX, y: e.clientY });
+    // Use the unified rich tooltip system for consistent styling
+    showRichTooltip('event', [event], e);
   };
 
   const handleEventLeave = () => {
-    setHoveredEvent(null);
+    // Use the unified hide tooltip function
+    hideRichTooltip();
   };
 
   const handleTooltipShow = (content: string, e: React.MouseEvent) => {
@@ -4987,7 +4998,7 @@ export default function RevenuePage() {
                 {/* Date Headers with Events */}
                 <div className="grid gap-1" style={{ gridTemplateColumns: '240px repeat(21, minmax(120px, 1fr))' }}>
                   {/* Room/Product Column Header */}
-                  <div className="sticky left-0 bg-gray-50 dark:bg-gray-800 p-4 font-semibold text-gray-900 dark:text-white border-r border-gray-200 dark:border-gray-700">
+                  <div className="room-type-header p-4 font-semibold text-gray-900 dark:text-white">
                     Room Type / Product
                   </div>
                   
@@ -5012,8 +5023,8 @@ export default function RevenuePage() {
                                   key={eventIndex}
                                   className={`event-dot ${event.impact}-impact cursor-pointer hover:scale-110 transition-transform`}
                                   title={event.title}
-                                  onMouseEnter={(e) => handleEventHover(event, e)}
-                                  onMouseLeave={handleEventLeave}
+                                  onMouseEnter={(e) => showRichTooltip('event', [event], e)}
+                                  onMouseLeave={hideRichTooltip}
                                   onClick={() => handleEventClick(event)}
                                 />
                               ))}
@@ -5043,7 +5054,7 @@ export default function RevenuePage() {
                     {/* Room Type Header */}
                     <div className="grid gap-1" style={{ gridTemplateColumns: '240px repeat(21, minmax(120px, 1fr))' }}>
                       <div 
-                        className="sticky left-0 bg-blue-50 dark:bg-blue-900/20 p-4 font-semibold text-blue-900 dark:text-blue-100 border-r border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors duration-200"
+                        className="sticky-room-column p-4 font-semibold text-blue-900 dark:text-blue-100 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-800/40 transition-colors duration-200"
                         onClick={() => toggleRoomExpansion(roomType.id)}
                       >
                         <div className="flex items-center justify-between">
@@ -5191,7 +5202,7 @@ export default function RevenuePage() {
                     {/* Products - Only show when expanded */}
                     {roomType.isExpanded && roomType.products.map((product) => (
                       <div key={product.id} className="grid gap-1" style={{ gridTemplateColumns: '240px repeat(21, minmax(120px, 1fr))' }}>
-                        <div className="sticky left-0 bg-gray-50 dark:bg-gray-800 p-4 border-r border-gray-200 dark:border-gray-700">
+                        <div className="product-row-sticky p-4">
                           <div className="font-medium text-gray-900 dark:text-white">{product.name}</div>
                           <div className="text-xs text-gray-500 dark:text-gray-400">{product.description}</div>
                           <div className="text-xs text-gray-400 mt-1">{product.type}</div>
@@ -5603,23 +5614,6 @@ export default function RevenuePage() {
         )}
 
         {/* Tooltip Components - Essential for hover functionality */}
-        {hoveredEvent && (
-          <EventTooltip event={hoveredEvent} position={tooltipPosition} />
-        )}
-
-        {hoveredTooltip && (
-          <div 
-            className="fixed z-[9997] px-3 py-2 text-sm bg-gray-900 text-white rounded-lg shadow-lg pointer-events-none"
-            style={{
-              left: hoveredTooltip.position.x,
-              top: hoveredTooltip.position.y - 40,
-              transform: 'translateX(-50%)'
-            }}
-          >
-            {hoveredTooltip.content}
-          </div>
-        )}
-
         {richTooltip && (
           <RichTooltip tooltip={richTooltip} />
         )}

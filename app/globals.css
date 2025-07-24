@@ -89,6 +89,7 @@
 html {
   scroll-behavior: smooth;
   font-size: 16px;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
 }
 
 body {
@@ -99,6 +100,256 @@ body {
   background-color: var(--surface-secondary);
   color: var(--text-primary);
   transition: all 250ms ease-in-out;
+  overflow-x: hidden; /* Prevent horizontal scrolling */
+}
+
+/* Horizontal Scroll Prevention */
+.no-horizontal-scroll {
+  overflow-x: hidden;
+}
+
+.no-horizontal-scroll-auto {
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+/* Global container to ensure no horizontal overflow */
+#__next {
+  overflow-x: hidden;
+  min-height: 100vh;
+}
+
+/* Prevent wide content from causing horizontal scroll */
+* {
+  max-width: 100%;
+}
+
+/* Ensure tables and grids don't cause horizontal overflow */
+.table-container,
+.grid-container,
+.rates-grid,
+.inventory-grid {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+/* For data tables that need horizontal scroll within container */
+.data-table-wrapper {
+  overflow-x: auto;
+  overflow-y: visible;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+}
+
+/* Sticky Column Implementation for Revenue Management Tables */
+.sticky-column {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: var(--surface);
+  border-right: 2px solid var(--border);
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}
+
+.dark .sticky-column {
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced sticky column for room type headers */
+.sticky-room-column {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 15 !important;
+  background: var(--surface-secondary) !important;
+  border-right: 2px solid var(--primary-light) !important;
+  box-shadow: 2px 0 8px rgba(37, 99, 235, 0.15) !important;
+  transition: box-shadow 0.2s ease;
+  min-width: 240px !important;
+  max-width: 240px !important;
+}
+
+.sticky-room-column:hover {
+  box-shadow: 4px 0 12px rgba(37, 99, 235, 0.25) !important;
+}
+
+.dark .sticky-room-column {
+  background: var(--surface-tertiary) !important;
+  box-shadow: 2px 0 8px rgba(37, 99, 235, 0.3) !important;
+}
+
+.dark .sticky-room-column:hover {
+  box-shadow: 4px 0 12px rgba(37, 99, 235, 0.4) !important;
+}
+
+/* AG Grid specific sticky column overrides */
+.ag-theme-alpine .ag-pinned-left-header,
+.ag-theme-alpine .ag-pinned-left-cols-container {
+  border-right: 2px solid var(--primary-light) !important;
+  box-shadow: 2px 0 8px rgba(37, 99, 235, 0.15) !important;
+  z-index: 20 !important;
+}
+
+.ag-theme-alpine .ag-header-cell.ag-header-cell-pinned-left,
+.ag-theme-alpine .ag-cell.ag-cell-pinned-left {
+  background: var(--surface-secondary) !important;
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 15 !important;
+}
+
+/* Revenue grid custom table styling */
+.revenue-grid {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+/* Ensure grid cells in sticky columns have proper background */
+.revenue-grid .grid-cell.sticky-left {
+  position: sticky;
+  left: 0;
+  z-index: 10;
+  background: inherit;
+  border-right: 2px solid var(--border);
+}
+
+/* Room type header specific styling */
+.room-type-header {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 20 !important;
+  background: var(--surface-secondary) !important;
+  border-right: 2px solid var(--primary-light) !important;
+  box-shadow: 2px 0 8px rgba(37, 99, 235, 0.15) !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+}
+
+.dark .room-type-header {
+  background: var(--surface-tertiary) !important;
+  box-shadow: 2px 0 8px rgba(37, 99, 235, 0.3) !important;
+}
+
+/* Product/Rate plan row styling for sticky columns */
+.product-row-sticky {
+  position: sticky !important;
+  left: 0 !important;
+  z-index: 12 !important;
+  background: var(--surface) !important;
+  border-right: 2px solid var(--border) !important;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08) !important;
+  min-width: 240px !important;
+  max-width: 240px !important;
+}
+
+.dark .product-row-sticky {
+  background: var(--surface-secondary) !important;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.2) !important;
+}
+
+/* Fix for webkit browsers sticky positioning */
+@supports (-webkit-sticky: sticky) {
+  .sticky-column,
+  .sticky-room-column,
+  .room-type-header {
+    position: -webkit-sticky;
+    position: sticky;
+  }
+}
+
+/* Mobile responsiveness for sticky columns */
+@media (max-width: 768px) {
+  .room-type-header {
+    min-width: 180px;
+    max-width: 180px;
+  }
+  
+  .sticky-column,
+  .sticky-room-column {
+    box-shadow: 1px 0 4px rgba(0, 0, 0, 0.1);
+  }
+}
+
+/* Enhanced focus states for sticky columns */
+.sticky-column:focus-within,
+.room-type-header:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+/* Enhanced JavaScript-controlled sticky behavior */
+.js-sticky-active {
+  will-change: transform;
+  transform-origin: left center;
+}
+
+/* Trackpad scrolling optimization */
+.revenue-grid,
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+}
+
+/* Date header sticky behavior */
+.date-header-sticky {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 30 !important;
+  background: var(--surface) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+  transition: box-shadow 0.2s ease !important;
+}
+
+.dark .date-header-sticky {
+  background: rgb(17 24 39) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Enhanced fixed positioning for date headers */
+.date-header-fixed {
+  position: fixed !important;
+  top: 100px !important;
+  left: 0 !important;
+  right: 0 !important;
+  z-index: 999 !important;
+  background: var(--surface) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  padding: 0 1.5rem !important;
+  margin: 0 !important;
+  border-bottom: 1px solid var(--border) !important;
+  backdrop-filter: blur(8px) !important;
+  animation: slideDownStickyHeader 0.2s ease-out !important;
+}
+
+.dark .date-header-fixed {
+  background: rgb(17 24 39) !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+  border-bottom: 1px solid rgb(75 85 99) !important;
+}
+
+@keyframes slideDownStickyHeader {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* Smooth transitions for JavaScript-controlled elements */
+.room-type-header,
+.sticky-room-column,
+.product-row-sticky {
+  transition: transform 0.1s ease-out, box-shadow 0.2s ease !important;
+}
+
+/* Prevent layout shift during sticky transitions */
+.sticky-container {
+  contain: layout style;
 }
 
 /* Premium Card System */
