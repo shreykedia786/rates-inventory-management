@@ -753,17 +753,14 @@ export default function RevenuePage() {
     const initializeStickyBehavior = () => {
       const scrollContainer = document.querySelector(".overflow-x-auto");
       const dateHeaderRow = document.querySelector(".grid.gap-1");
+      const tableContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl");
+      const mainHeader = document.querySelector(".sticky-header");
       
-      if (!scrollContainer || !dateHeaderRow) return;
+      if (!scrollContainer || !dateHeaderRow || !tableContainer || !mainHeader) return;
 
-
-          // CRITICAL: Update fixed date header position during horizontal scroll
-          const fixedDateHeader = document.querySelector(".date-header-fixed, .date-header-seamless");
-          if (fixedDateHeader && fixedDateHeader instanceof HTMLElement) {
-            fixedDateHeader.style.transform = `translateX(-${scrollLeft}px)`;
-          }      let isScrolling = false;
+      let isScrolling = false;
       let ticking = false;
-      let lastScrollY = 0;      
+      
       const handleHorizontalScroll = () => {
         if (isScrolling) return;
         isScrolling = true;
@@ -772,10 +769,11 @@ export default function RevenuePage() {
           const scrollLeft = scrollContainer.scrollLeft;
           
           // Handle room type headers (sticky on horizontal scroll)
+          // CRITICAL FIX: Use negative translateX to keep columns fixed during scroll
           const roomTypeHeaders = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
           roomTypeHeaders.forEach((element) => {
             if (element instanceof HTMLElement) {
-              element.style.transform = `translateX(${scrollLeft}px)`;
+              element.style.transform = `translateX(-${scrollLeft}px)`; // FIXED: Negative to counteract scroll
               element.style.position = "relative";
               // Use lower z-index if dates are fixed to avoid overlap
               const isDateFixed = document.querySelector(".date-header-fixed, .date-header-seamless");
@@ -788,9 +786,8 @@ export default function RevenuePage() {
             }
           });
           
-
           // CRITICAL: Update fixed date header position during horizontal scroll
-          const fixedDateHeader = document.querySelector(".date-header-fixed, .date-header-seamless");
+          const fixedDateHeader = document.querySelector(".date-header-fixed");
           if (fixedDateHeader && fixedDateHeader instanceof HTMLElement) {
             fixedDateHeader.style.transform = `translateX(-${scrollLeft}px)`;
           }
@@ -801,14 +798,8 @@ export default function RevenuePage() {
 
       const handleVerticalScroll = () => {
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-        const tableContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl");
-        const dateHeaderRow = document.querySelector(".grid.gap-1");
-        
-        if (!tableContainer || !dateHeaderRow) return;
-        
         const tableRect = tableContainer.getBoundingClientRect();
         // Calculate actual header height dynamically
-        const mainHeader = document.querySelector(".sticky-header");
         const actualHeaderHeight = mainHeader ? mainHeader.getBoundingClientRect().height : 88;
         
         // Make date headers sticky when table scrolls past viewport top
@@ -826,19 +817,11 @@ export default function RevenuePage() {
           dateHeaderRow.classList.add("date-header-fixed");
 
           // CRITICAL: Synchronize horizontal scroll with main content
-          const scrollContainer = document.querySelector(".revenue-grid");
-          if (scrollContainer) {
-            const currentScrollLeft = scrollContainer.scrollLeft;
-            dateHeaderRow.style.transform = `translateX(-${currentScrollLeft}px)`;
-            dateHeaderRow.style.width = `${scrollContainer.scrollWidth}px`;
-            dateHeaderRow.style.minWidth = `${scrollContainer.scrollWidth}px`;
-            dateHeaderRow.style.overflowX = "hidden";
-          }
-          
-          // Handle dark mode
-          if (document.documentElement.classList.contains("dark")) {
-            dateHeaderRow.style.background = "rgb(17 24 39)";
-            dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
+          const currentScrollLeft = scrollContainer.scrollLeft;
+          dateHeaderRow.style.transform = `translateX(-${currentScrollLeft}px)`;
+          dateHeaderRow.style.width = `${scrollContainer.scrollWidth}px`;
+          dateHeaderRow.style.minWidth = `${scrollContainer.scrollWidth}px`;
+          dateHeaderRow.style.overflowX = "hidden";
 
           // CRITICAL: Lower z-index for room type elements to prevent overlap
           const roomTypeElements = document.querySelectorAll(".room-type-header, .sticky-room-column, .product-row-sticky");
@@ -846,7 +829,13 @@ export default function RevenuePage() {
             if (element instanceof HTMLElement) {
               element.classList.add("dates-fixed");
             }
-          });          }
+          });
+          
+          // Handle dark mode
+          if (document.documentElement.classList.contains("dark")) {
+            dateHeaderRow.style.background = "rgb(17 24 39)";
+            dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
+          }
         } else if (dateHeaderRow instanceof HTMLElement) {
           dateHeaderRow.style.position = "static";
           dateHeaderRow.style.top = "auto";
@@ -858,10 +847,10 @@ export default function RevenuePage() {
           dateHeaderRow.style.backdropFilter = "";
           dateHeaderRow.style.padding = "";
           dateHeaderRow.style.margin = "";
-            dateHeaderRow.style.transform = "";
-            dateHeaderRow.style.width = "";
-            dateHeaderRow.style.minWidth = "";
-            dateHeaderRow.style.overflowX = "";
+          dateHeaderRow.style.transform = "";
+          dateHeaderRow.style.width = "";
+          dateHeaderRow.style.minWidth = "";
+          dateHeaderRow.style.overflowX = "";
           dateHeaderRow.classList.remove("date-header-fixed");
 
           // CRITICAL: Restore normal z-index for room type elements
@@ -870,10 +859,10 @@ export default function RevenuePage() {
             if (element instanceof HTMLElement) {
               element.classList.remove("dates-fixed");
             }
-          });        }
+          });
+        }
       };
-      // Add event listeners
-      scrollContainer.addEventListener("scroll", handleHorizontalScroll, { passive: true });
+
       const throttledVerticalScroll = () => {
         if (!ticking) {
           requestAnimationFrame(() => {
@@ -883,9 +872,12 @@ export default function RevenuePage() {
           ticking = true;
         }
       };
+
+      // Add event listeners
+      scrollContainer.addEventListener("scroll", handleHorizontalScroll, { passive: true });
       window.addEventListener("scroll", throttledVerticalScroll, { passive: true });
       
-      // Initial setup
+      // Initialize on mount
       handleHorizontalScroll();
       handleVerticalScroll();
 
@@ -4210,7 +4202,7 @@ export default function RevenuePage() {
                           selectedRestrictionType.color === 'red' ? 'text-red-600 dark:text-red-400' :
                           selectedRestrictionType.color === 'orange' ? 'text-orange-600 dark:text-orange-400' :
                           selectedRestrictionType.color === 'blue' ? 'text-blue-600 dark:text-blue-400' :
-                          'text-purple-600 dark:text-purple-400'
+                          'text-purple-600 dark:text-purple-300'
                         }`} />
                       </div>
                       <div>
