@@ -23,13 +23,19 @@ import {
 } from 'lucide-react';
 import { EnhancedPriceModal } from '@/components/ui/enhanced-price-modal';
 import { EnhancedInventoryModal } from '@/components/ui/inventory-modal';
+import IntegratedHeader from '../components/IntegratedHeader';
 import GlobalNewsInsights from '../components/GlobalNewsInsights';
 import { MonthlyCalendarView } from '../components/MonthlyCalendarView';
 import { useGlobalNewsInsights } from '../hooks/useGlobalNewsInsights';
 import PromotionAssistant from '../components/PromotionAssistant';
 import { InventoryStatusIconInline, getFixedCompetitorData } from '../components/MainPageFixes';
 import PublishConfirmation from '../components/PublishConfirmation';
-
+import TutorialOverlay from '../components/TutorialOverlay';
+import SummarizedAITooltip from "../components/SummarizedAITooltip";
+import EnhancedAIRecommendationTooltip from "../components/EnhancedAIRecommendationTooltip";
+import EnhancedAutoAgentTooltip from "../components/EnhancedAutoAgentTooltip";
+import { createEnhancedApplyHandler } from "../components/EnhancedApplyHandler";
+import { Toaster, useToast } from "../components/ui/toast";
 // Import our standardized types for data consistency
 import { 
   StandardizedRateData, 
@@ -722,6 +728,9 @@ export default function RevenuePage() {
   
   // Monthly View State
   const [selectedRoomTypeForMonthly, setSelectedRoomTypeForMonthly] = useState("");
+
+  // Toast system
+  const { success: toastSuccess, error: toastError } = useToast();
   const [selectedRatePlanForMonthly, setSelectedRatePlanForMonthly] = useState("");
   const [monthlyViewDate, setMonthlyViewDate] = useState(new Date());  
   const [changes, setChanges] = useState<Array<{
@@ -752,6 +761,10 @@ export default function RevenuePage() {
   } | null>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
 
+  // Property and Competitor State Management
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [selectedCompetitors, setSelectedCompetitors] = useState<any[]>([]);
+
   // Enhanced Rich Tooltip State
   const [richTooltip, setRichTooltip] = useState<{
     type: 'event' | 'ai' | 'competitor' | 'general' | 'inventory_analysis';
@@ -764,6 +777,13 @@ export default function RevenuePage() {
   
   // Tooltip timeout for preventing flickering
   const [tooltipTimeout, setTooltipTimeout] = useState<NodeJS.Timeout | null>(null);
+
+  // Enhanced Auto Agent Tooltip State
+  const [autoAgentTooltip, setAutoAgentTooltip] = useState<{
+    insights: AIInsight[];
+    currentRate: number;
+    position: { x: number; y: number };
+  } | null>(null);
 
   // Filters and Export State
   const [isFiltersOpen, setIsFiltersOpen] = useState(false);
@@ -830,7 +850,8 @@ export default function RevenuePage() {
     applyInsight: applyNewsInsight,
     dismissInsight: dismissNewsInsight,
     toggleAutoRefresh,
-    isAutoRefreshEnabled
+    isAutoRefreshEnabled,
+    setInsights: setGlobalNewsInsights
   } = useGlobalNewsInsights({
     autoRefresh: true,
     refreshInterval: 15 * 60 * 1000, // 15 minutes
@@ -1352,7 +1373,7 @@ export default function RevenuePage() {
     
     return (
       <div 
-        className="fixed z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 max-w-sm"
+        className="fixed z-[9997] bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg p-4 max-w-sm"
         style={{ 
           left: `${x}px`, 
           top: `${y}px`
@@ -1558,77 +1579,17 @@ export default function RevenuePage() {
           const aiData = tooltip.data;
           const aiInsights = Array.isArray(aiData) ? aiData : (aiData.insights || []);
           
-          return (
-            <div className="space-y-4">
-              {/* Header */}
-              <div className="flex items-center gap-3 pb-3 border-b border-gray-200/20">
-                <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg flex items-center justify-center">
-                  <Bot className="w-4 h-4 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-sm font-semibold text-white">AI Revenue Insights</h3>
-                  <p className="text-xs text-gray-300">Intelligent recommendations for optimization</p>
-                </div>
-              </div>
-
-              {/* AI Insights */}
-              <div className="space-y-3">
-                {Array.isArray(aiInsights) && aiInsights.length > 0 ? aiInsights.slice(0, 2).map((insight, index) => (
-                  <div key={index} className="bg-white/5 backdrop-blur-sm rounded-lg p-3 border border-white/10">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex-1 min-w-0 pr-2">
-                        <h4 className="text-sm font-medium text-white mb-1 break-words">{insight.title}</h4>
-                        <p className="text-xs text-gray-300 leading-relaxed break-words">{insight.message}</p>
-                      </div>
-                      <div className="flex flex-col items-end gap-1 flex-shrink-0">
-                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
-                          insight.confidence >= 80 ? 'bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-lg' :
-                          insight.confidence >= 60 ? 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white shadow-lg' :
-                          'bg-gradient-to-r from-red-500 to-red-600 text-white shadow-lg'
-                        }`}>
-                          {insight.confidence}%
-                        </span>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          insight.impact === 'critical' ? 'bg-red-500/20 text-red-300 border border-red-500/30' :
-                          insight.impact === 'high' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' :
-                          insight.impact === 'medium' ? 'bg-yellow-500/20 text-yellow-300 border border-yellow-500/30' :
-                          'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                        }`}>
-                          {insight.impact.toUpperCase()}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    {insight.potentialRevenue && (
-                      <div className="bg-gradient-to-r from-emerald-500/20 to-blue-500/20 rounded-md p-2 mb-3 border border-emerald-500/30">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-300">Revenue Potential:</span>
-                          <span className="text-emerald-400 font-bold">+₹{insight.potentialRevenue.toLocaleString()}</span>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {insight.suggestedAction && (
-                      <div className="bg-blue-500/10 rounded-md p-2 border border-blue-500/20">
-                        <div className="flex items-start gap-2">
-                          <div className="w-1.5 h-1.5 bg-blue-400 rounded-full mt-1.5 flex-shrink-0"></div>
-                          <div className="flex-1 min-w-0">
-                            <div className="text-xs font-medium text-blue-300 mb-1">Suggested Action</div>
-                            <p className="text-xs text-gray-300 leading-relaxed break-words">{insight.suggestedAction}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )) : (
-                  <div className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 text-center">
-                    <div className="text-gray-400 text-sm">No AI insights available for this date</div>
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-
+          // Get current rate from the tooltip position context (estimate from sample data)
+          return <EnhancedAIRecommendationTooltip 
+            insights={aiInsights} 
+            currentRate={estimatedCurrentRate}
+            onApply={handleApplyInsight}
+            onDetails={(insight) => {
+              const details = `🤖 ${insight.title}\n\n${insight.reasoning}`;
+              alert(details);
+            }}
+            onDismiss={handleDismissInsight}
+          />
         case 'competitor':
           const competitorData = tooltip.data;
           const currentPrice = competitorData.currentPrice || 0;
@@ -1701,7 +1662,7 @@ export default function RevenuePage() {
                             competitor.rate < currentPrice ? 'text-emerald-400' : 'text-yellow-400'
                           }`}>
                             {competitor.rate > currentPrice ? '+' : competitor.rate < currentPrice ? '-' : '='}
-                            {Math.abs(competitor.rate - currentPrice)}
+                            ₹{Math.abs(competitor.rate - currentPrice).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -2114,14 +2075,16 @@ export default function RevenuePage() {
             eventImpact: i === 5 ? sampleEvents[0] : undefined,
             competitorData: {
               competitors: [
-                { name: 'Grand Plaza Hotel', rate: 6200 + (i * 95), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'City Center Inn', rate: 5900 + (i * 85), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
-                { name: 'Business Hotel', rate: 6800 + (i * 110), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 7200 + (i * 120), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
+                { name: 'Paradise Resort', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 2.1, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'Azure Waters Hotel', rate: 5900 + (i * 85), availability: 78 + (i % 15), distance: 3.5, rating: 3.9, trend: 'down' },
+                { name: 'Coral Bay Resort', rate: 6800 + (i * 110), availability: 45 + (i % 25), distance: 5.2, rating: 4.0, trend: 'stable' },
+                { name: 'Sunset Villa Resort', rate: 7200 + (i * 120), availability: 30 + (i % 30), distance: 7.8, rating: 4.5, trend: 'up' }
               ],
               marketPosition: 'competitive' as const,
-              averageRate: Math.round((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)),
-              priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 85 + 120) / 4))) / ((6200 + 5900 + 6800 + 7200) / 4 + (i * (95 + 85 + 110 + 120) / 4)) * 100),
+              averageRate: Math.round((6200 + (i * 95) + 5900 + (i * 85) + 6800 + (i * 110) + 7200 + (i * 120)) / 4),
+              lowestRate: Math.min(6200 + (i * 95), 5900 + (i * 85), 6800 + (i * 110), 7200 + (i * 120)),
+              highestRate: Math.max(6200 + (i * 95), 5900 + (i * 85), 6800 + (i * 110), 7200 + (i * 120)),
+              priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - Math.round((6200 + (i * 95) + 5900 + (i * 85) + 6800 + (i * 110) + 7200 + (i * 120)) / 4)) / Math.round((6200 + (i * 95) + 5900 + (i * 85) + 6800 + (i * 110) + 7200 + (i * 120)) / 4) * 100),
               marketShare: 23 + (i % 8)
             },
           }))
@@ -2142,14 +2105,16 @@ export default function RevenuePage() {
             competitorIndicator: (i % 4 === 0) ? 'higher' : (i % 4 === 1) ? 'competitive' : 'lower',
             competitorData: {
               competitors: [
-                { name: 'Grand Plaza Hotel', rate: 5500 + (i * 75), availability: 60 + (i % 25), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'City Center Inn', rate: 5200 + (i * 70), availability: 80 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
-                { name: 'Business Hotel', rate: 6000 + (i * 85), availability: 50 + (i % 20), distance: 0.6, rating: 4.0, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 6400 + (i * 95), availability: 35 + (i % 25), distance: 1.5, rating: 4.5, trend: 'up' }
+                { name: 'Paradise Resort', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 2.1, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'Azure Waters Hotel', rate: 5200 + (i * 70), availability: 80 + (i % 15), distance: 3.5, rating: 3.9, trend: 'down' },
+                { name: 'Coral Bay Resort', rate: 6000 + (i * 85), availability: 50 + (i % 20), distance: 5.2, rating: 4.0, trend: 'stable' },
+                { name: 'Sunset Villa Resort', rate: 6400 + (i * 95), availability: 35 + (i % 25), distance: 7.8, rating: 4.5, trend: 'up' }
               ],
               marketPosition: (i % 3 === 0) ? 'premium' : (i % 3 === 1) ? 'competitive' : 'value',
-              averageRate: Math.round((5500 + 5200 + 6000 + 6400) / 4 + (i * (75 + 70 + 85 + 95) / 4)),
-              priceAdvantage: Math.round(((5800 + (i * 80) + (dates[i]?.isWeekend ? 600 : 0)) - ((5500 + 5200 + 6000 + 6400) / 4 + (i * (75 + 70 + 85 + 95) / 4))) / ((5500 + 5200 + 6000 + 6400) / 4 + (i * (75 + 70 + 85 + 95) / 4)) * 100),
+              averageRate: Math.round((5500 + (i * 75) + 5200 + (i * 70) + 6000 + (i * 85) + 6400 + (i * 95)) / 4),
+              lowestRate: Math.min(5500 + (i * 75), 5200 + (i * 70), 6000 + (i * 85), 6400 + (i * 95)),
+              highestRate: Math.max(5500 + (i * 75), 5200 + (i * 70), 6000 + (i * 85), 6400 + (i * 95)),
+              priceAdvantage: Math.round(((5800 + (i * 80) + (dates[i]?.isWeekend ? 600 : 0)) - Math.round((5500 + (i * 75) + 5200 + (i * 70) + 6000 + (i * 85) + 6400 + (i * 95)) / 4)) / Math.round((5500 + (i * 75) + 5200 + (i * 70) + 6000 + (i * 85) + 6400 + (i * 95)) / 4) * 100),
               marketShare: 20 + (i % 12)
             }
           }))
@@ -2200,14 +2165,16 @@ export default function RevenuePage() {
             eventImpact: i === 7 ? sampleEvents[0] : undefined,
             competitorData: {
               competitors: [
-                { name: 'Grand Plaza Hotel', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 0.8, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'City Center Inn', rate: 7800 + (i * 130), availability: 78 + (i % 15), distance: 1.2, rating: 3.9, trend: 'down' },
-                { name: 'Business Hotel', rate: 9000 + (i * 160), availability: 45 + (i % 25), distance: 0.6, rating: 4.0, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 9500 + (i * 180), availability: 30 + (i % 30), distance: 1.5, rating: 4.5, trend: 'up' }
+                { name: 'Paradise Resort', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 2.1, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
+                { name: 'Azure Waters Hotel', rate: 7800 + (i * 130), availability: 78 + (i % 15), distance: 3.5, rating: 3.9, trend: 'down' },
+                { name: 'Coral Bay Resort', rate: 9000 + (i * 160), availability: 45 + (i % 25), distance: 5.2, rating: 4.0, trend: 'stable' },
+                { name: 'Sunset Villa Resort', rate: 9500 + (i * 180), availability: 30 + (i % 30), distance: 7.8, rating: 4.5, trend: 'up' }
               ],
               marketPosition: 'competitive' as const,
-              averageRate: Math.round((8200 + 7800 + 9000 + 9500) / 4 + (i * (140 + 130 + 160 + 180) / 4)),
-              priceAdvantage: Math.round(((8500 + (i * 150) + (dates[i]?.isWeekend ? 1000 : 0)) - (8200 + 7800 + 9000 + 9500) / 4) / ((8200 + 7800 + 9000 + 9500) / 4) * 100),
+              averageRate: Math.round((8200 + (i * 140) + 7800 + (i * 130) + 9000 + (i * 160) + 9500 + (i * 180)) / 4),
+              lowestRate: Math.min(8200 + (i * 140), 7800 + (i * 130), 9000 + (i * 160), 9500 + (i * 180)),
+              highestRate: Math.max(8200 + (i * 140), 7800 + (i * 130), 9000 + (i * 160), 9500 + (i * 180)),
+              priceAdvantage: Math.round(((8500 + (i * 150) + (dates[i]?.isWeekend ? 1000 : 0)) - (8200 + (i * 140) + 7800 + (i * 130) + 9000 + (i * 160) + 9500 + (i * 180)) / 4) / ((8200 + (i * 140) + 7800 + (i * 130) + 9000 + (i * 160) + 9500 + (i * 180)) / 4) * 100),
               marketShare: 23 + (i % 8)
             },
           }))
@@ -2694,7 +2661,101 @@ export default function RevenuePage() {
   };
 
   const handleApplyInsight = (insight: AIInsight) => {
-    console.log('Applying insight:', insight);
+    console.log("🚀 Applying AI Insight:", insight);
+    
+    // Calculate recommended rate based on insight type
+    const calculateRecommendedRate = () => {
+      if (insight.type === "automation" && insight.eventBased) {
+        const increasePercent = insight.confidence > 80 ? 0.20 : 0.15;
+        return Math.round(7800 * (1 + increasePercent));
+      } else if (insight.competitorBased) {
+        return Math.round(7800 * 1.12);
+      } else {
+        return Math.round(7800 * 1.08);
+      }
+    };
+
+    const recommendedRate = calculateRecommendedRate();
+
+    // Create change record
+    const change = {
+      id: Date.now().toString(),
+      type: "price" as const,
+      room: "Deluxe Room",
+      product: "BAR",
+      date: dates[0]?.dateStr || format(new Date(), "yyyy-MM-dd"),
+      oldValue: 7800,
+      newValue: recommendedRate,
+      timestamp: new Date(),
+      source: "ai_recommendation",
+      insightId: insight.id,
+      confidence: insight.confidence,
+      reasoning: insight.reasoning
+    };
+    
+    setChanges(prev => [...prev, change]);
+
+    // Log the event
+    logEvent({
+      eventType: "ai_recommendation_applied",
+      category: "pricing",
+      severity: "medium",
+      source: "ai_agent",
+      description: `Applied AI recommendation: ${insight.title}`,
+      roomType: "Deluxe Room",
+      dateAffected: dates[0]?.dateStr || format(new Date(), "yyyy-MM-dd"),
+      oldValue: 7800,
+      newValue: recommendedRate,
+      changeAmount: recommendedRate - 7800,
+      changePercentage: ((recommendedRate - 7800) / 7800) * 100,
+      aiConfidence: insight.confidence,
+      aiReasoning: insight.reasoning,
+      potentialRevenue: insight.potentialRevenue
+    });
+    // Remove insight from GlobalNewsInsights if it came from there
+    if (globalNewsInsights.some(gi => gi.id === insight.id)) {
+      setGlobalNewsInsights(prev => prev.filter(gi => gi.id !== insight.id));
+    }
+
+    // Show success toast notification
+    toastSuccess(
+      "AI Recommendation Applied!",
+      `Rate updated from ₹7,800 to ₹${recommendedRate.toLocaleString()} (${insight.confidence}% confidence)`
+    );
+
+    
+    // Update room type data to mark corresponding cells as changed for visual feedback
+    setRoomTypes(prev => 
+      prev.map(roomType => {
+        if (roomType.name === "Deluxe Room") {
+          return {
+            ...roomType,
+            products: roomType.products.map(product => {
+              if (product.type === "BAR") {
+                const updatedData = [...product.data];
+                const dateIndex = 0; // Apply to first date - in real app would match the actual date
+                if (updatedData[dateIndex]) {
+                  updatedData[dateIndex] = {
+                    ...updatedData[dateIndex],
+                    rate: recommendedRate,
+                    originalRate: updatedData[dateIndex].originalRate || updatedData[dateIndex].rate,
+                    isChanged: true, // This triggers the visual styling
+                    lastModified: new Date(),
+                    source: "ai_recommendation"
+                  };
+                }
+                return { ...product, data: updatedData };
+              }
+              return product;
+            })
+          };
+        }
+        return roomType;
+      })
+    );
+    // Close tooltips
+    setRichTooltip(null);
+    setAutoAgentTooltip(null);
   };
 
   const handleDismissInsight = (insight: AIInsight) => {
@@ -4257,13 +4318,13 @@ export default function RevenuePage() {
 
     const getCategoryIcon = (category: EventLog['category']) => {
       switch (category) {
-        case 'pricing': return <DollarSign className="w-4 h-4" />;
-        case 'inventory': return <Package className="w-4 h-4" />;
-        case 'restrictions': return <Lock className="w-4 h-4" />;
-        case 'ai': return <Brain className="w-4 h-4" />;
-        case 'export': return <Download className="w-4 h-4" />;
-        case 'system': return <Settings className="w-4 h-4" />;
-        default: return <Activity className="w-4 h-4" />;
+        case 'pricing': return <DollarSign className="w-4 h-4" />
+        case 'inventory': return <Package className="w-4 h-4" />
+        case 'restrictions': return <Lock className="w-4 h-4" />
+        case 'ai': return <Brain className="w-4 h-4" />
+        case 'export': return <Download className="w-4 h-4" />
+        case 'system': return <Settings className="w-4 h-4" />
+        default: return <Activity className="w-4 h-4" />
       }
     };
 
@@ -4724,50 +4785,61 @@ export default function RevenuePage() {
     return result;
   };
 
+  // Property and Competitor Handlers
+  const handlePropertyChange = useCallback((property: any) => {
+    setSelectedProperty(property);
+    console.log('Property changed to:', property);
+  }, []);
+
+  const handleCompetitorsChange = useCallback((competitors: any[]) => {
+    setSelectedCompetitors(competitors);
+    console.log('Competitors changed to:', competitors);
+  }, []);
+
+  // Tutorial Overlay State
+  const [isTutorialOpen, setIsTutorialOpen] = useState(false);
+  const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  // Ensure component is mounted (client-side only)
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Auto-show tutorial for first-time users (client-side only)
+  useEffect(() => {
+    if (!isMounted) return; // Prevent SSR issues
+    
+    const hasSeenTutorialBefore = localStorage.getItem('rates-tutorial-seen');
+    if (!hasSeenTutorialBefore && !hasSeenTutorial) {
+      // Show tutorial after a short delay for better UX
+      const timer = setTimeout(() => {
+        setIsTutorialOpen(true);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [hasSeenTutorial, isMounted]);
+
+  const handleTutorialComplete = () => {
+    setHasSeenTutorial(true);
+    localStorage.setItem('rates-tutorial-seen', 'true');
+    setIsTutorialOpen(false);
+  };
+
+  const showTutorial = () => {
+    setIsTutorialOpen(true);
+  };
+
   return (
     <div className={`min-h-screen transition-all duration-300 ${isDark ? 'dark' : ''}`}>
-      {/* Sticky Header */}
-      <header className="sticky-header">
-        <div className="w-full px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                Revenue Management
-              </h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
-                AI-powered pricing optimization platform
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Dark Mode Toggle */}
-              <button
-                onClick={toggleDarkMode}
-                className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 
-                         flex items-center justify-center hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-              >
-                {isDark ? <Sun className="w-5 h-5 text-yellow-500" /> : <Moon className="w-5 h-5 text-gray-600" />}
-              </button>
-
-              {/* Inline Edit Status */}
-              {inlineEdit && (
-                <div className="flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-3 py-2 rounded-lg text-sm font-medium animate-pulse">
-                  <Edit3 className="w-4 h-4" />
-                  <span>Editing {inlineEdit.type} - Press Enter to save, Esc to cancel</span>
-                </div>
-              )}
-
-              {/* User Profile */}
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                  <User className="w-4 h-4 text-white" />
-                </div>
-                <span className="text-sm font-medium text-gray-900 dark:text-white">Revenue Manager</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </header>
+      {/* Integrated Header with Property & Competitor Selectors */}
+      <IntegratedHeader 
+        isDark={isDark}
+        onToggleDarkMode={toggleDarkMode}
+        inlineEdit={inlineEdit}
+        onPropertyChange={handlePropertyChange}
+        onCompetitorsChange={handleCompetitorsChange}
+      />
 
       {/* Main Content */}
       <main className="w-full px-6 py-8 space-y-8">
@@ -5044,6 +5116,9 @@ export default function RevenuePage() {
                                 {inv.isChanged && inv.originalInventory !== undefined && (
                                   <div className="absolute bottom-1 right-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
                                     {inv.originalInventory} → {inv.inventory}
+                                    {inv.eventImpact && (
+                                      <div className="w-1 h-1 bg-yellow-500 rounded-full inline-block ml-1" title="Event Impact"></div>
+                                    )}
                                   </div>
                                 )}
 
@@ -5130,7 +5205,7 @@ export default function RevenuePage() {
                             className={`grid-cell cursor-pointer group relative bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600
                               ${data.isChanged ? 'ring-2 ring-orange-500 bg-orange-50 dark:bg-orange-900/30 border-orange-300 dark:border-orange-600' : ''}
                               ${data.aiInsights.length > 0 ? 'has-ai-insight ring-1 ring-purple-200 dark:ring-purple-800' : ''} 
-                              ${data.eventImpact ? 'has-event ring-1 ring-orange-200 dark:ring-orange-800' : ''}
+                              ${data.eventImpact && !data.isChanged ? 'has-event ring-1 ring-orange-200 dark:ring-orange-800' : ''}
                               ${dates[dateIndex]?.events.length > 0 ? 'event-affected bg-orange-50 dark:bg-orange-900/10' : ''}
                               ${inlineEdit?.type === 'price' && inlineEdit.roomId === roomType.id && inlineEdit.productId === product.id && inlineEdit.dateIndex === dateIndex ? 'ring-2 ring-blue-500' : ''}
                               ${getCellRestrictionClasses(roomType.name, product.type, dates[dateIndex]?.dateStr || '')}
@@ -5179,6 +5254,9 @@ export default function RevenuePage() {
                                   {data.isChanged && data.originalRate !== undefined && (
                                     <div className="absolute bottom-1 right-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
                                       ₹{data.originalRate.toLocaleString()} → ₹{data.rate.toLocaleString()}
+                                      {data.eventImpact && (
+                                        <div className="w-1 h-1 bg-yellow-500 rounded-full inline-block ml-1" title="Event Impact"></div>
+                                      )}
                                     </div>
                                   )}
                                   
@@ -5217,13 +5295,66 @@ export default function RevenuePage() {
                                       </div>
                                     )}
                                     
-                                    {data.aiInsights && data.aiInsights.length > 0 && (
+                                    {data.aiInsights && data.aiInsights.length > 0 && !data.aiInsights.some(insight => insight.agentCapabilities?.canAutoExecute) && (
                                       <div 
                                         className="tooltip-icon-area"
-                                        onMouseEnter={(e) => showRichTooltip('ai', data.aiInsights, e)}
+                                        onMouseEnter={(e) => showRichTooltip('ai', { insights: data.aiInsights, currentRate: data.rate }, e)}
                                         onMouseLeave={handleTooltipMouseLeave}
                                       >
                                         <Brain className="w-3 h-3 text-blue-500 tooltip-icon" />
+                                      </div>
+                                    )}
+                                    
+                                    {/* Auto Pricing Agent Indicator */}
+                                    {data.aiInsights && data.aiInsights.some(insight => insight.agentCapabilities?.canAutoExecute) && (
+                                      <div 
+                                        className="tooltip-icon-area"
+                                        onMouseEnter={(e) => {
+                                          const autoExecuteInsight = data.aiInsights.find(insight => insight.agentCapabilities?.canAutoExecute);
+                                          if (autoExecuteInsight) {
+                                            // Clear any existing hide timeout
+                                            if (tooltipTimeout) {
+                                              clearTimeout(tooltipTimeout);
+                                              setTooltipTimeout(null);
+                                            }
+                                            
+                                            const target = e.currentTarget as HTMLElement;
+                                            const rect = target.getBoundingClientRect();
+                                            
+                                            // Show enhanced auto agent tooltip
+                                            const showTimeout = setTimeout(() => {
+                                              setAutoAgentTooltip({
+                                                insights: [autoExecuteInsight],
+                                                currentRate: data.rate,
+                                                position: {
+                                                  x: rect.right,
+                                                  y: rect.top + (rect.height / 2)
+                                                }
+                                              });
+                                            }, 150);
+                                            
+                                            setTooltipTimeout(showTimeout);
+                                          }
+                                        }}
+                                        onMouseLeave={() => {
+                                          // Add delay before hiding to allow users to move to tooltip
+                                          if (tooltipTimeout) {
+                                            clearTimeout(tooltipTimeout);
+                                            setTooltipTimeout(null);
+                                          }
+                                          
+                                          const hideTimeout = setTimeout(() => {
+                                            setAutoAgentTooltip(null);
+                                          }, 300);
+                                          
+                                          setTooltipTimeout(hideTimeout);
+                                        }}                                        onMouseLeave={handleTooltipMouseLeave}
+                                      >
+                                        <div className="relative">
+                                          <Zap className="w-3 h-3 text-green-500 tooltip-icon" />
+                                          {/* Auto-execute status indicator */}
+                                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                                        </div>
                                       </div>
                                     )}
                                     
@@ -5339,7 +5470,7 @@ export default function RevenuePage() {
                 { name: 'Hotel Paradise', rate: 7500, availability: 12, distance: 0.8, rating: 4.2, trend: 'down' },
                 { name: 'Grand Plaza', rate: 9200, availability: 8, distance: 1.2, rating: 4.5, trend: 'up' },
                 { name: 'City Inn', rate: 6800, availability: 15, distance: 2.1, rating: 3.9, trend: 'stable' },
-                { name: 'Luxury Suites', rate: 12000, availability: 3, distance: 0.5, rating: 4.8, trend: 'up' }
+                { name: 'Sunset Villa Resort', rate: 12000, availability: 3, distance: 0.5, rating: 4.8, trend: 'up' }
               ],
               marketPosition: 'competitive',
               priceAdvantage: 5.2
@@ -5452,8 +5583,8 @@ export default function RevenuePage() {
           onClose={() => setIsGlobalNewsOpen(false)}
           insights={globalNewsInsights}
           isDark={isDark}
-          onApplyInsight={applyNewsInsight}
-          onDismissInsight={dismissNewsInsight}
+          onApplyInsight={handleApplyInsight}
+          onDismissInsight={handleDismissInsight}
           onRefreshInsights={refreshNewsInsights}
           isLoading={isNewsLoading}
         />
@@ -5479,7 +5610,7 @@ export default function RevenuePage() {
 
         {hoveredTooltip && (
           <div 
-            className="fixed z-50 px-3 py-2 text-sm bg-gray-900 text-white rounded-lg shadow-lg pointer-events-none"
+            className="fixed z-[9997] px-3 py-2 text-sm bg-gray-900 text-white rounded-lg shadow-lg pointer-events-none"
             style={{
               left: hoveredTooltip.position.x,
               top: hoveredTooltip.position.y - 40,
@@ -5496,7 +5627,7 @@ export default function RevenuePage() {
 
 
         {/* Floating Agentic AI Button */}
-        <div className="fixed bottom-6 right-6 z-50">
+        <div className="fixed bottom-6 right-6 z-[9997]">
           <button 
             onClick={() => setIsGlobalNewsOpen(true)}
             className="group relative w-16 h-16 rounded-full bg-gradient-to-r from-blue-600 to-purple-600 text-white flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 animate-pulse"
@@ -5520,6 +5651,73 @@ export default function RevenuePage() {
           </button>
         </div>
 
+        {/* Tutorial Button */}
+        <div className="fixed bottom-6 left-6 z-[9997]">
+          <button
+            onClick={showTutorial}
+            className="w-14 h-14 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-full flex items-center justify-center shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-110"
+            title="Show Tutorial"
+          >
+            <BookOpen className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Enhanced Auto Agent Tooltip */}
+        {autoAgentTooltip && (
+          <EnhancedAutoAgentTooltip
+            insights={autoAgentTooltip.insights}
+            currentRate={autoAgentTooltip.currentRate}
+            position={autoAgentTooltip.position}
+            onApply={handleApplyInsight}
+            onDetails={(insight) => {
+              const details = `🤖 AI Recommendation Details
+
+${insight.title}
+
+WHY THIS CHANGE?
+${insight.reasoning}
+
+📊 INSIGHT ANALYSIS:
+• Type: ${insight.type.toUpperCase()}
+• Confidence: ${insight.confidence}%
+• Impact Level: ${insight.impact.toUpperCase()}
+${insight.eventBased ? "• Event-Based: Yes" : ""}
+${insight.competitorBased ? "• Competitor-Based: Yes" : ""}
+
+🎯 SUGGESTED ACTION:
+${insight.suggestedAction || insight.message}
+
+💰 REVENUE POTENTIAL:
+${insight.potentialRevenue ? `+₹${insight.potentialRevenue.toLocaleString()}` : "Not specified"}
+
+${insight.agentCapabilities?.canAutoExecute ? `
+🤖 AUTO-AGENT CAPABILITIES:
+• Can Auto-Execute: Yes
+• Requires Approval: ${insight.agentCapabilities.requiresApproval ? "Yes" : "No"}
+• Execution Delay: ${insight.agentCapabilities.executionDelay || 0} minutes
+• Risk Assessment: ${insight.agentCapabilities.riskAssessment?.toUpperCase() || "UNKNOWN"}
+` : ""}
+
+---
+💡 TIP: This recommendation is based on real-time market analysis and historical performance data.`;
+              alert(details);
+            }}
+            onDismiss={handleDismissInsight}
+            onClose={() => setAutoAgentTooltip(null)}
+          />
+        )}
+        {/* Tutorial Overlay - Client-side only */}
+        {isMounted && (
+          <TutorialOverlay 
+            isOpen={isTutorialOpen}
+            onClose={() => setIsTutorialOpen(false)}
+            onComplete={() => {
+              setHasSeenTutorial(true);
+              localStorage.setItem('rates-tutorial-seen', 'true');
+              setIsTutorialOpen(false);
+            }}
+          />
+        )}
       </main>
     </div>
   );
