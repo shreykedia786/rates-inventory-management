@@ -756,7 +756,12 @@ export default function RevenuePage() {
       
       if (!scrollContainer || !dateHeaderRow) return;
 
-      let isScrolling = false;
+
+          // CRITICAL: Update fixed date header position during horizontal scroll
+          const fixedDateHeader = document.querySelector(".date-header-fixed, .date-header-seamless");
+          if (fixedDateHeader && fixedDateHeader instanceof HTMLElement) {
+            fixedDateHeader.style.transform = `translateX(-${scrollLeft}px)`;
+          }      let isScrolling = false;
       let ticking = false;
       let lastScrollY = 0;      
       const handleHorizontalScroll = () => {
@@ -780,6 +785,13 @@ export default function RevenuePage() {
               element.style.maxWidth = "240px";
             }
           });
+          
+
+          // CRITICAL: Update fixed date header position during horizontal scroll
+          const fixedDateHeader = document.querySelector(".date-header-fixed, .date-header-seamless");
+          if (fixedDateHeader && fixedDateHeader instanceof HTMLElement) {
+            fixedDateHeader.style.transform = `translateX(-${scrollLeft}px)`;
+          }
           
           isScrolling = false;
         });
@@ -810,6 +822,16 @@ export default function RevenuePage() {
           dateHeaderRow.style.padding = "0 1.5rem";
           dateHeaderRow.style.margin = "0";
           dateHeaderRow.classList.add("date-header-fixed");
+
+          // CRITICAL: Synchronize horizontal scroll with main content
+          const scrollContainer = document.querySelector(".revenue-grid");
+          if (scrollContainer) {
+            const currentScrollLeft = scrollContainer.scrollLeft;
+            dateHeaderRow.style.transform = `translateX(-${currentScrollLeft}px)`;
+            dateHeaderRow.style.width = `${scrollContainer.scrollWidth}px`;
+            dateHeaderRow.style.minWidth = `${scrollContainer.scrollWidth}px`;
+            dateHeaderRow.style.overflowX = "hidden";
+          }
           
           // Handle dark mode
           if (document.documentElement.classList.contains("dark")) {
@@ -827,6 +849,10 @@ export default function RevenuePage() {
           dateHeaderRow.style.backdropFilter = "";
           dateHeaderRow.style.padding = "";
           dateHeaderRow.style.margin = "";
+            dateHeaderRow.style.transform = "";
+            dateHeaderRow.style.width = "";
+            dateHeaderRow.style.minWidth = "";
+            dateHeaderRow.style.overflowX = "";
           dateHeaderRow.classList.remove("date-header-fixed");
         }
       };
@@ -5362,7 +5388,8 @@ export default function RevenuePage() {
                                           }, 300);
                                           
                                           setTooltipTimeout(hideTimeout);
-                                        }}                                        onMouseLeave={handleTooltipMouseLeave}
+                                        }}
+                                        onMouseLeave={handleTooltipMouseLeave}
                                       >
                                         <div className="relative">
                                           <Zap className="w-3 h-3 text-green-500 tooltip-icon" />
