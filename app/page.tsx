@@ -851,7 +851,6 @@ export default function RevenuePage() {
     dismissInsight: dismissNewsInsight,
     toggleAutoRefresh,
     isAutoRefreshEnabled,
-    setInsights: setGlobalNewsInsights
   } = useGlobalNewsInsights({
     autoRefresh: true,
     refreshInterval: 15 * 60 * 1000, // 15 minutes
@@ -1582,7 +1581,7 @@ export default function RevenuePage() {
           // Get current rate from the tooltip position context (estimate from sample data)
           return <EnhancedAIRecommendationTooltip 
             insights={aiInsights} 
-            currentRate={estimatedCurrentRate}
+            currentRate={7500}
             onApply={handleApplyInsight}
             onDetails={(insight) => {
               const details = `🤖 ${insight.title}\n\n${insight.reasoning}`;

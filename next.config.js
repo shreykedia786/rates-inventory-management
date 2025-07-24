@@ -10,9 +10,7 @@ const nextConfig = {
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   experimental: {
-    // optimizeCss: true, // Temporarily disabled to fix bundler error
     webVitalsAttribution: ['CLS', 'LCP', 'INP', 'FCP', 'TTFB'],
-    serverComponentsExternalPackages: ['recharts', 'date-fns'],
   },
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
@@ -43,28 +41,14 @@ const nextConfig = {
     ];
   },
   webpack: (config, { dev, isServer }) => {
-    config.optimization.splitChunks = {
-      chunks: 'all',
-      cacheGroups: {
-        vendor: {
-          test: /[\\/]node_modules[\\/]/,
-          name: 'vendors',
-          chunks: 'all',
-        },
-        common: {
-          name: 'common',
-          minChunks: 2,
-          chunks: 'all',
-          enforce: true,
-        },
-      },
-    };
+    // Only add essential webpack configuration
     config.module.rules.push({
       test: /apps\/backend\//,
       loader: 'ignore-loader',
     });
     return config;
   },
+  // Temporarily ignore TypeScript errors for deployment
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -72,7 +56,7 @@ const nextConfig = {
     ignoreDuringBuilds: false,
     dirs: ['pages', 'components', 'lib', 'hooks', 'utils'],
   },
-  output: 'standalone',
+  // Remove standalone output for better Vercel compatibility
   async redirects() {
     return [
       {
