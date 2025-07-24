@@ -793,17 +793,20 @@ export default function RevenuePage() {
         if (!tableContainer || !dateHeaderRow) return;
         
         const tableRect = tableContainer.getBoundingClientRect();
-        const headerHeight = 100; // Account for page header
+        // Calculate actual header height dynamically
+        const mainHeader = document.querySelector(".sticky-header");
+        const actualHeaderHeight = mainHeader ? mainHeader.getBoundingClientRect().height : 88;
         
         // Make date headers sticky when table scrolls past viewport top
-        if (tableRect.top <= headerHeight && dateHeaderRow instanceof HTMLElement) {
+        if (tableRect.top <= actualHeaderHeight && dateHeaderRow instanceof HTMLElement) {
           dateHeaderRow.style.position = "fixed";
-          dateHeaderRow.style.top = `${headerHeight}px`;
+          dateHeaderRow.style.top = `${actualHeaderHeight}px`;
           dateHeaderRow.style.left = "0";
           dateHeaderRow.style.right = "0";
           dateHeaderRow.style.zIndex = "999";
           dateHeaderRow.style.background = "white";
-          dateHeaderRow.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.15)";
+          dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.1)";
+          dateHeaderRow.style.backdropFilter = "blur(8px)";
           dateHeaderRow.style.padding = "0 1.5rem";
           dateHeaderRow.style.margin = "0";
           dateHeaderRow.classList.add("date-header-fixed");
@@ -811,7 +814,7 @@ export default function RevenuePage() {
           // Handle dark mode
           if (document.documentElement.classList.contains("dark")) {
             dateHeaderRow.style.background = "rgb(17 24 39)";
-            dateHeaderRow.style.boxShadow = "0 4px 12px rgba(0, 0, 0, 0.3)";
+            dateHeaderRow.style.boxShadow = "0 2px 8px rgba(0, 0, 0, 0.2)";
           }
         } else if (dateHeaderRow instanceof HTMLElement) {
           dateHeaderRow.style.position = "static";
@@ -821,6 +824,7 @@ export default function RevenuePage() {
           dateHeaderRow.style.zIndex = "auto";
           dateHeaderRow.style.background = "";
           dateHeaderRow.style.boxShadow = "none";
+          dateHeaderRow.style.backdropFilter = "";
           dateHeaderRow.style.padding = "";
           dateHeaderRow.style.margin = "";
           dateHeaderRow.classList.remove("date-header-fixed");
