@@ -751,12 +751,18 @@ export default function RevenuePage() {
   // Comprehensive Sticky Column & Header Implementation
   useEffect(() => {
     const initializeStickyBehavior = () => {
-      const scrollContainer = document.querySelector(".overflow-x-auto");
+      // Use more specific selector for the rates grid scroll container
+      const scrollContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl .revenue-grid")?.parentElement;
       const dateHeaderRow = document.querySelector(".grid.gap-1");
       const tableContainer = document.querySelector(".bg-white.dark\\:bg-gray-900.rounded-xl");
       const mainHeader = document.querySelector(".sticky-header");
       
-      if (!scrollContainer || !dateHeaderRow || !tableContainer || !mainHeader) return;
+      if (!scrollContainer || !dateHeaderRow || !tableContainer || !mainHeader) {
+        console.log("Sticky elements not found:", { scrollContainer, dateHeaderRow, tableContainer, mainHeader });
+        return;
+      }
+
+      console.log("✅ Sticky behavior initialized - all elements found");
 
       let isScrolling = false;
       let ticking = false;
