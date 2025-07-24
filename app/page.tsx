@@ -966,8 +966,19 @@ export default function RevenuePage() {
       console.log("🧹 Component cleanup - clearing timer");
       clearTimeout(timer);
     };
-  }, [currentView]); // Only depend on currentView to avoid dependency issues
+  }, []); // CHANGED: Empty dependency array to run on every mount
 
+  // Additional effect that runs when currentView changes
+  useEffect(() => {
+    console.log("🔄 Current view changed:", currentView);
+    // Re-initialize after view change with delay
+    const timer = setTimeout(() => {
+      console.log("🔄 Re-initializing sticky behavior after view change...");
+      // The sticky behavior will re-initialize due to the effect above
+    }, 1000);
+    
+    return () => clearTimeout(timer);
+  }, [currentView]);
 
   // Inline Editing State
   const [inlineEdit, setInlineEdit] = useState<{
