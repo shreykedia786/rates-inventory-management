@@ -167,6 +167,12 @@ body {
   transition: box-shadow 0.2s ease;
   min-width: 240px !important;
   max-width: 240px !important;
+  /* Hardware acceleration for smooth scrolling */
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout style paint;
 }
 
 /* CRITICAL: Lower z-index for sticky room columns when dates are fixed */
@@ -229,6 +235,12 @@ body {
   box-shadow: 2px 0 8px rgba(37, 99, 235, 0.15) !important;
   min-width: 240px !important;
   max-width: 240px !important;
+  /* Hardware acceleration for smooth scrolling */
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout style paint;
 }
 
 /* CRITICAL: Lower z-index for room type when dates are fixed */
@@ -251,6 +263,12 @@ body {
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08) !important;
   min-width: 240px !important;
   max-width: 240px !important;
+  /* Hardware acceleration for smooth scrolling */
+  will-change: transform;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout style paint;
 }
 
 /* CRITICAL: Lower z-index for product rows when dates are fixed */
@@ -305,6 +323,26 @@ body {
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   overscroll-behavior-x: contain;
+  /* Performance optimizations */
+  will-change: scroll-position;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Optimized scrolling container */
+.scroll-container {
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  /* Performance optimizations for smooth scrolling */
+  will-change: scroll-position;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  contain: layout style paint;
 }
 
 /* Date header sticky behavior */
@@ -384,12 +422,18 @@ body {
 .room-type-header,
 .sticky-room-column,
 .product-row-sticky {
-  transition: transform 0.1s ease-out, box-shadow 0.2s ease !important;
+  transition: box-shadow 0.2s ease !important;
+  /* Remove transform transition to prevent conflicts with sticky positioning */
 }
 
 /* Prevent layout shift during sticky transitions */
 .sticky-container {
-  contain: layout style;
+  contain: layout style paint;
+  /* Optimize for smooth scrolling */
+  will-change: scroll-position;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 /* Premium Card System */
@@ -1855,4 +1899,326 @@ button:focus-visible {
 .dark .loading-skeleton {
   background: linear-gradient(90deg, #374151 25%, #4b5563 50%, #374151 75%);
   background-size: 200% 100%;
+} 
+
+/* ============================================
+   REVENUE GRID - FIXED PANEL LAYOUT SYSTEM
+   ============================================ */
+
+/* Main grid container - flexbox based layout */
+.revenue-grid-container {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 200px); /* Adjust based on your header height */
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+}
+
+/* Fixed top header for dates */
+.grid-header-row {
+  display: flex;
+  background: var(--surface-secondary);
+  border-bottom: 2px solid var(--border);
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+/* Fixed left column placeholder in header */
+.grid-header-corner {
+  width: 280px;
+  min-width: 280px;
+  background: var(--surface-tertiary);
+  border-right: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--text-primary);
+  padding: 1rem;
+}
+
+/* Scrollable date headers container */
+.grid-header-dates {
+  flex: 1;
+  display: flex;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Individual date header cells */
+.grid-date-header {
+  min-width: 140px;
+  max-width: 140px;
+  padding: 1rem;
+  background: var(--surface-secondary);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 500;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+/* Main content area with fixed left panel */
+.grid-content-area {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Fixed left sidebar for room types */
+.grid-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: var(--surface-tertiary);
+  border-right: 2px solid var(--border);
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 15;
+  flex-shrink: 0;
+}
+
+/* Room type sections in sidebar */
+.grid-room-section {
+  border-bottom: 1px solid var(--border);
+}
+
+/* Room type header in sidebar */
+.grid-room-header {
+  padding: 1rem;
+  background: var(--surface-secondary);
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.grid-room-header:hover {
+  background: var(--surface-hover);
+}
+
+/* Product rows in sidebar */
+.grid-product-row {
+  padding: 0.75rem 1rem 0.75rem 2rem;
+  background: var(--surface);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+/* Scrollable data grid */
+.grid-data-container {
+  flex: 1;
+  overflow: auto;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Data grid structure */
+.grid-data-grid {
+  display: flex;
+  flex-direction: column;
+  min-width: fit-content;
+}
+
+/* Row containers */
+.grid-data-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  min-height: 80px;
+}
+
+.grid-data-row.room-row {
+  background: var(--surface-secondary);
+  min-height: 60px;
+}
+
+.grid-data-row.product-row {
+  background: var(--surface);
+}
+
+/* Individual data cells */
+.grid-data-cell {
+  min-width: 140px;
+  max-width: 140px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0.5rem;
+}
+
+.grid-data-cell:hover {
+  background: var(--surface-hover);
+  transform: scale(1.02);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10;
+}
+
+/* Enhanced cell states */
+.grid-data-cell.inventory-cell {
+  background: rgba(59, 130, 246, 0.05);
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: 1.25rem;
+}
+
+.grid-data-cell.price-cell {
+  background: var(--surface);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.grid-data-cell.inline-editing {
+  background: rgba(59, 130, 246, 0.1);
+  border: 2px solid var(--primary);
+  transform: scale(1.05);
+  z-index: 20;
+}
+
+/* Hardware acceleration for smooth scrolling */
+.grid-header-dates,
+.grid-data-container {
+  will-change: scroll-position;
+  transform: translate3d(0, 0, 0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Synchronized scrolling between header and content */
+.grid-header-dates::-webkit-scrollbar,
+.grid-data-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.grid-header-dates::-webkit-scrollbar-track,
+.grid-data-container::-webkit-scrollbar-track {
+  background: var(--surface-tertiary);
+  border-radius: 4px;
+}
+
+.grid-header-dates::-webkit-scrollbar-thumb,
+.grid-data-container::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+.grid-header-dates::-webkit-scrollbar-thumb:hover,
+.grid-data-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-quaternary);
+}
+
+/* Dark mode adjustments */
+.dark .grid-header-corner {
+  background: var(--surface-tertiary);
+  color: var(--text-primary);
+}
+
+.dark .grid-date-header {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.dark .grid-room-header {
+  background: var(--surface-secondary);
+  color: var(--text-primary);
+}
+
+.dark .grid-room-header:hover {
+  background: var(--surface-hover);
+}
+
+.dark .grid-product-row {
+  background: var(--surface);
+  color: var(--text-secondary);
+}
+
+.dark .grid-data-cell.inventory-cell {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  .revenue-grid-container {
+    height: calc(100vh - 120px);
+  }
+  
+  .grid-header-corner,
+  .grid-sidebar {
+    width: 200px;
+    min-width: 200px;
+  }
+  
+  .grid-date-header,
+  .grid-data-cell {
+    min-width: 120px;
+    max-width: 120px;
+  }
+  
+  .grid-data-cell {
+    font-size: 0.875rem;
+    padding: 0.25rem;
+  }
+}
+
+/* Remove all previous sticky positioning code */
+.sticky-column,
+.sticky-room-column,
+.room-type-header,
+.product-row-sticky,
+.date-header-sticky,
+.date-header-fixed,
+.date-header-seamless {
+  /* Reset all sticky positioning */
+  position: static !important;
+  left: auto !important;
+  top: auto !important;
+  z-index: auto !important;
+  transform: none !important;
+  will-change: auto !important;
+  contain: none !important;
+}
+
+/* Animation for smooth interactions */
+@keyframes cellHover {
+  0% { transform: scale(1); }
+  100% { transform: scale(1.02); }
+}
+
+.grid-data-cell:hover {
+  animation: cellHover 0.2s ease forwards;
+}
+
+/* Loading states */
+.grid-loading {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.grid-loading .grid-data-cell {
+  background: linear-gradient(90deg, 
+    var(--surface) 25%, 
+    var(--surface-secondary) 50%, 
+    var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 } 

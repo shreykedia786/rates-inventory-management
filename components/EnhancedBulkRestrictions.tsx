@@ -15,9 +15,11 @@ interface RestrictionType {
   id: string;
   name: string;
   code: string;
-  color: 'red' | 'orange' | 'blue' | 'purple';
   description: string;
-  needsValue: boolean;
+  category: string;
+  icon: string;
+  color: 'red' | 'orange' | 'blue' | 'purple';
+  priority: number;
 }
 
 interface BulkRestriction {
@@ -45,12 +47,96 @@ interface Props {
 }
 
 const restrictionTypes: RestrictionType[] = [
-  { id: 'stop_sell', name: 'Stop Sell', code: 'SS', color: 'red', description: 'Completely stop all sales', needsValue: false },
-  { id: 'closed_to_arrival', name: 'Closed to Arrival', code: 'CTA', color: 'orange', description: 'Block new arrivals on selected dates', needsValue: false },
-  { id: 'closed_to_departure', name: 'Closed to Departure', code: 'CTD', color: 'orange', description: 'Block departures on selected dates', needsValue: false },
-  { id: 'minlos', name: 'Minimum Length of Stay', code: 'MLOS', color: 'blue', description: 'Set minimum nights required', needsValue: true },
-  { id: 'maxlos', name: 'Maximum Length of Stay', code: 'MAXLOS', color: 'blue', description: 'Set maximum nights allowed', needsValue: true },
-  { id: 'booking_window', name: 'Advance Booking Window', code: 'ABW', color: 'purple', description: 'Set advance booking requirements', needsValue: true }
+  {
+    id: 'closeout',
+    name: 'Closeout',
+    code: 'CLOSEOUT',
+    description: 'Closeout completely blocks room availability for specific dates making it ideal for planned maintenance, renovations, or private events.',
+    category: 'availability',
+    icon: 'X',
+    color: 'red',
+    priority: 10
+  },
+  {
+    id: 'cta',
+    name: 'CTA (Closed to Arrival)',
+    code: 'CTA',
+    description: 'CTA blocks guests from starting their stay on specific dates. By applying this restriction, you can encourage bookings that span multiple nights instead of single-night stays.',
+    category: 'availability',
+    icon: 'ArrowRight',
+    color: 'red',
+    priority: 9
+  },
+  {
+    id: 'ctd',
+    name: 'CTD (Closed to Departure)',
+    code: 'CTD',
+    description: 'CTD prevents guests from checking out on specific dates and it is used for high-demand season. For instance, if 5th September is a public holiday and a peak occupancy day, applying CTD ensures that guests\' stays extend beyond the holiday, helping to maintain a higher occupancy rate.',
+    category: 'availability',
+    icon: 'ArrowLeft',
+    color: 'red',
+    priority: 8
+  },
+  {
+    id: 'minlos',
+    name: 'MinLOS (Minimum Length of Stay)',
+    code: 'MINLOS',
+    description: 'By applying MinLOS restriction, your guests book a minimum number of consecutive nights. For instance, during a popular summer weekend, setting MinLOS to 3 ensures that guests book at least Friday to Sunday. This helps to increase your overall revenue.',
+    category: 'length_of_stay',
+    icon: 'ArrowRight',
+    color: 'orange',
+    priority: 7
+  },
+  {
+    id: 'maxlos',
+    name: 'MaxLOS (Maximum Length of Stay)',
+    code: 'MAXLOS',
+    description: 'MaxLOS limits the number of nights a guest can book, which helps manage inventory availability for higher-paying or shorter-stay guests. For example, during Christmas week, setting a MaxLOS to 5 prevents guests from booking an entire week at a discounted rate.',
+    category: 'length_of_stay',
+    icon: 'ArrowLeft',
+    color: 'orange',
+    priority: 6
+  },
+  {
+    id: 'minlos_through',
+    name: 'Min LOS Through (Minimum Length of Stay Through)',
+    code: 'MINLOS_THROUGH',
+    description: 'This restriction ensures that a booking crossing a specific date must meet the minimum number of nights set. It\'s useful during peak days when you want to avoid short stays that block high-demand dates.',
+    category: 'length_of_stay',
+    icon: 'Link',
+    color: 'purple',
+    priority: 5
+  },
+  {
+    id: 'maxlos_through',
+    name: 'MaxLOS Through (Maximum Length of Stay)',
+    code: 'MAXLOS_THROUGH',
+    description: 'MaxLOS Through limits the total length of stay for reservations that include a specific date. For example, if you want to avoid long-stay guests overlapping a festival, this restriction helps free up inventory for high-paying bookings.',
+    category: 'length_of_stay',
+    icon: 'Link',
+    color: 'purple',
+    priority: 4
+  },
+  {
+    id: 'min_advance_purchase',
+    name: 'Minimum Advance Purchase Days',
+    code: 'MIN_ADV',
+    description: 'This restriction requires guests to book a certain number of days in advance. It helps drive early bookings and allows better forecasting and pricing strategies. For example, setting it to 7 ensures guests book at least a week before arrival.',
+    category: 'booking',
+    icon: 'Calendar',
+    color: 'blue',
+    priority: 3
+  },
+  {
+    id: 'max_advance_purchase',
+    name: 'Maximum Advance Purchase Days',
+    code: 'MAX_ADV',
+    description: 'Maximum Advance Purchase caps how far in advance guests can book. It helps avoid early low-rate bookings during periods when rates might increase. For instance, setting it to 30 prevents bookings more than a month in advance.',
+    category: 'booking',
+    icon: 'Calendar',
+    color: 'blue',
+    priority: 2
+  }
 ];
 
 export default function EnhancedBulkRestrictions({ 
@@ -120,7 +206,9 @@ export default function EnhancedBulkRestrictions({
     }
     
     // Check if restriction needs a value
-    if (selectedRestrictionType && selectedRestrictionType.needsValue) {
+    if (selectedRestrictionType && 
+         (selectedRestrictionType.category === 'length_of_stay' || 
+          selectedRestrictionType.category === 'booking')) {
       if (!restrictionForm.value || parseInt(restrictionForm.value) <= 0) {
         errors.push(`Please enter a valid ${selectedRestrictionType.name.toLowerCase()} value`);
       }

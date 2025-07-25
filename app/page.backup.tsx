@@ -876,35 +876,7 @@ export default function RevenuePage() {
     channels: [] as string[],
     notes: ''
   });
-  const [bulkRestrictions, setBulkRestrictions] = useState<BulkRestriction[]>([
-    {
-      id: 'test-minlos-1',
-      restrictionType: {
-        id: 'minlos',
-        name: 'MinLOS (Minimum Length of Stay)',
-        code: 'MINLOS',
-        description: 'MinLOS enforces a minimum number of nights that guests must book to reserve a room.',
-        category: 'length_of_stay',
-        icon: 'Calendar',
-        color: 'yellow',
-        priority: 7
-      },
-      value: 3,
-      dateRange: {
-        start: new Date().toISOString().split('T')[0],
-        end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
-      },
-      targets: {
-        roomTypes: ['Deluxe Room'],
-        ratePlans: ['BAR'],
-        channels: []
-      },
-      status: 'active',
-      createdBy: 'Test User',
-      createdAt: new Date(),
-      notes: 'Sample restriction for tooltip testing'
-    }
-  ]);
+  const [bulkRestrictions, setBulkRestrictions] = useState<BulkRestriction[]>([]);
 
   // Event Logs State
   const [isEventLogsOpen, setIsEventLogsOpen] = useState(false);
@@ -1867,23 +1839,8 @@ export default function RevenuePage() {
                       <div className="flex items-start gap-3">
                         <div className="w-2 h-2 bg-orange-400 rounded-full mt-1.5 flex-shrink-0"></div>
                         <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-white font-medium">{restriction.name}</span>
-                            <span className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-300 rounded-full font-mono">
-                              {restriction.code}
-                            </span>
-                          </div>
-                          <div className="text-xs text-gray-400 mb-1">{restriction.description}</div>
-                          {restriction.value && (
-                            <div className="text-xs text-orange-300 font-medium">
-                              Value: {restriction.value}
-                            </div>
-                          )}
-                          {restriction.notes && (
-                            <div className="text-xs text-gray-400 mt-1 italic">
-                              Note: {restriction.notes}
-                            </div>
-                          )}
+                          <span className="text-sm text-white font-medium">{restriction}</span>
+                          <div className="text-xs text-gray-400 mt-1">Active restriction policy</div>
                         </div>
                       </div>
                     </div>
@@ -5183,24 +5140,19 @@ export default function RevenuePage() {
 
                                   {/* Other Indicators Row */}
                                   <div className="flex items-center justify-center gap-1 mb-1">
-                                    {(() => {
-                                      // Get actual bulk restrictions for this cell
-                                      const dateStr = dates[dateIndex].dateStr;
-                                      const restrictionData = getRestrictionTooltipData(roomType.name, product.type, dateStr);
-                                      
-                                      return restrictionData && restrictionData.count > 0 && (
-                                        <div 
-                                          className="tooltip-icon-area"
-                                          onMouseEnter={(e) => {
-                                            console.log('🖱️ Hovering on restriction icon:', restrictionData);
-                                            showRichTooltip('general', restrictionData, e);
-                                          }}
-                                          onMouseLeave={handleTooltipMouseLeave}
-                                        >
-                                          <Lock className="w-3 h-3 text-orange-500 tooltip-icon" />
-                                        </div>
-                                      );
-                                    })()}
+                                    {data.restrictions && data.restrictions.length > 0 && (
+                                      <div 
+                                        className="tooltip-icon-area"
+                                        onMouseEnter={(e) => showRichTooltip('general', { 
+                                          type: 'restrictions', 
+                                          restrictions: data.restrictions,
+                                          count: data.restrictions.length
+                                        }, e)}
+                                        onMouseLeave={handleTooltipMouseLeave}
+                                      >
+                                        <Lock className="w-3 h-3 text-orange-500 tooltip-icon" />
+                                      </div>
+                                    )}
                                     
                                     {data.aiInsights && data.aiInsights.length > 0 && !data.aiInsights.some(insight => insight.agentCapabilities?.canAutoExecute) && (
                                       <div 
@@ -5489,33 +5441,7 @@ export default function RevenuePage() {
         <ExportPanel />
 
         {/* Bulk Restrictions Panel */}
-        <WorkingBulkRestrictions 
-          isOpen={isBulkRestrictionsOpen} 
-          onClose={() => setIsBulkRestrictionsOpen(false)} 
-          restrictionTypes={restrictionTypes} 
-          roomTypes={sampleRoomTypes} 
-          onApply={(data) => {
-            const newRestriction: BulkRestriction = {
-              id: `restriction-${Date.now()}`, 
-              restrictionType: data.restrictionType, 
-              value: data.value || undefined, 
-              dateRange: data.dateRange, 
-              targets: {
-                roomTypes: data.roomTypes || [], 
-                ratePlans: data.ratePlans || [], 
-                channels: data.channels || []
-              }, 
-              status: "active", 
-              createdBy: "Current User", 
-              createdAt: new Date(), 
-              notes: data.notes || ""
-            }; 
-            setBulkRestrictions(prev => [...prev, newRestriction]); 
-            console.log("✅ Applied bulk restriction:", newRestriction); 
-            alert(`Applied ${data.restrictionType.name} restriction successfully!`); 
-            setIsBulkRestrictionsOpen(false);
-          }} 
-        />
+        <BulkRestrictionsPanel />
 
         {/* Event Logs Panel */}
         <EventLogsPanel />
@@ -5648,3 +5574,5 @@ ${insight.agentCapabilities?.canAutoExecute ? `
     </div>
   );
 }
+```
+</rewritten_file
