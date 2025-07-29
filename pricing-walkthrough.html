@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pricing & Inventory AI System - CEO Walkthrough</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .walkthrough-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .hero-section {
+            text-align: center;
+            padding: 3rem 0;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        .hero-section h1 {
+            font-size: 3rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #fff, #e0e7ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-section p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .screen-section {
+            background: white;
+            border-radius: 20px;
+            margin-bottom: 3rem;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .screen-section:hover {
+            transform: translateY(-5px);
+        }
+
+        .screen-header {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .screen-header h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .screen-header p {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .screen-content {
+            padding: 2rem;
+        }
+
+        .mockup-frame {
+            background: #f8fafc;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 120px repeat(7, 1fr);
+            gap: 1px;
+            background: #e2e8f0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .grid-header {
+            background: #64748b;
+            color: white;
+            padding: 0.75rem 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            text-align: center;
+        }
+
+        .grid-row-header {
+            background: #f1f5f9;
+            padding: 0.75rem 0.5rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border-right: 1px solid #e2e8f0;
+        }
+
+        .grid-cell {
+            background: white;
+            padding: 0.75rem 0.5rem;
+            text-align: center;
+            position: relative;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            font-size: 0.875rem;
+        }
+
+        .ai-badge {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            background: linear-gradient(45deg, #8b5cf6, #a855f7);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            cursor: pointer;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .rate-value {
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .ai-suggested {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5) !important;
+            border: 2px solid #10b981 !important;
+        }
+
+        .manually-overridden {
+            background: linear-gradient(135deg, #fef3c7, #fde68a) !important;
+            border: 2px solid #f59e0b !important;
+        }
+
+        .tooltip-panel {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem;
+            width: 320px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 1000;
+            margin-top: 8px;
+        }
+
+        .tooltip-panel::before {
+            content: '';
+            position: absolute;
+            top: -8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-bottom: 8px solid white;
+        }
+
+        .confidence-score {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .confidence-bar {
+            flex: 1;
+            height: 8px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .confidence-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        .risk-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .risk-high {
+            background: #fef2f2;
+            color: #dc2626;
+            border: 1px solid #fecaca;
+        }
+
+        .risk-medium {
+            background: #fefbf2;
+            color: #d97706;
+            border: 1px solid #fed7aa;
+        }
+
+        .risk-low {
+            background: #f0fdf4;
+            color: #059669;
+            border: 1px solid #bbf7d0;
+        }
+
+        .revenue-potential {
+            background: linear-gradient(135deg, #ecfdf5, #d1fae5);
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #4f46e5, #7c3aed);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f8fafc;
+            color: #475569;
+            border: 1px solid #e2e8f0;
+        }
+
+        .btn-secondary:hover {
+            background: #f1f5f9;
+        }
+
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            padding: 2rem;
+            width: 500px;
+            max-width: 90vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-label {
+            display: block;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+        }
+
+        .ai-explanation {
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .event-flow {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .flow-step {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            flex: 1;
+            position: relative;
+        }
+
+        .flow-step.active {
+            border-color: #4f46e5;
+            background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+        }
+
+        .flow-arrow {
+            color: #64748b;
+            font-size: 1.5rem;
+        }
+
+        .audit-trail {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .audit-entry {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .audit-entry:last-child {
+            border-bottom: none;
+        }
+
+        .audit-timestamp {
+            color: #64748b;
+            font-size: 0.875rem;
+            min-width: 120px;
+        }
+
+        .audit-action {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .audit-user {
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+
+        .annotations {
+            background: #fef9e7;
+            border-left: 4px solid #f59e0b;
+            border-radius: 0 8px 8px 0;
+            padding: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .annotation-title {
+            font-weight: 600;
+            color: #92400e;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .annotation-list {
+            list-style: none;
+            margin-left: 1rem;
+        }
+
+        .annotation-list li {
+            margin-bottom: 0.5rem;
+            position: relative;
+        }
+
+        .annotation-list li::before {
+            content: '→';
+            color: #f59e0b;
+            font-weight: bold;
+            position: absolute;
+            left: -1rem;
+        }
+
+        .ceo-insights {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: white;
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 3rem 0;
+        }
+
+        .ceo-insights h3 {
+            color: #e2e8f0;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        .metric-card {
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 1rem;
+            text-align: center;
+        }
+
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #10b981;
+        }
+
+        .metric-label {
+            color: #cbd5e1;
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .navigation {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: white;
+            border-radius: 50px;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .nav-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .nav-dot.active {
+            background: #4f46e5;
+            transform: scale(1.2);
+        }
+
+        .screen-number {
+            position: absolute;
+            top: 1rem;
+            right: 2rem;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        @media (max-width: 768px) {
+            .walkthrough-container {
+                padding: 1rem;
+            }
+            
+            .hero-section h1 {
+                font-size: 2rem;
+            }
+            
+            .grid-container {
+                font-size: 0.75rem;
+            }
+            
+            .tooltip-panel {
+                width: 280px;
+            }
+            
+            .navigation {
+                bottom: 1rem;
+                right: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="walkthrough-container">
+        <!-- Hero Section -->
+        <div class="hero-section">
+            <h1>🧠 AI-Powered Pricing Intelligence</h1>
+            <p>A comprehensive walkthrough of our intelligent rate management system designed for CEO-level understanding of AI transparency, control, and revenue optimization.</p>
+        </div>
+
+        <!-- Screen 1: Main Pricing Grid View -->
+        <div class="screen-section" id="screen-1">
+            <div class="screen-header">
+                <div class="screen-number">1/5</div>
+                <h2>🧩 Main Pricing Grid View</h2>
+                <p>Intelligent rate visualization with AI-powered insights and manual override capabilities</p>
+            </div>
+            <div class="screen-content">
+                <div class="mockup-frame">
+                    <h3 style="margin-bottom: 1rem; color: #1e293b; font-weight: 600;">February 2024 - Premium Room Rates</h3>
+                    
+                    <div class="grid-container">
+                        <!-- Header Row -->
+                        <div class="grid-header">Room Type</div>
+                        <div class="grid-header">Feb 17 (Sat)</div>
+                        <div class="grid-header">Feb 18 (Sun)</div>
+                        <div class="grid-header">Feb 19 (Mon)</div>
+                        <div class="grid-header">Feb 20 (Tue)</div>
+                        <div class="grid-header">Feb 21 (Wed)</div>
+                        <div class="grid-header">Feb 22 (Thu)</div>
+                        <div class="grid-header">Feb 23 (Fri)</div>
+                        
+                        <!-- Standard Room Row -->
+                        <div class="grid-row-header">Standard<br><small style="color: #64748b;">15 rooms</small></div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$285</div>
+                            <small style="color: #059669;">+$25</small>
+                        </div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$275</div>
+                            <small style="color: #059669;">+$20</small>
+                        </div>
+                        <div class="grid-cell">
+                            <div class="rate-value">$245</div>
+                        </div>
+                        <div class="grid-cell manually-overridden">
+                            <div class="rate-value">$230</div>
+                            <small style="color: #d97706;">Manual</small>
+                        </div>
+                        <div class="grid-cell">
+                            <div class="rate-value">$235</div>
+                        </div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$265</div>
+                            <small style="color: #059669;">+$15</small>
+                        </div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$295</div>
+                            <small style="color: #059669;">+$35</small>
+                        </div>
+                        
+                        <!-- Deluxe Room Row -->
+                        <div class="grid-row-header">Deluxe<br><small style="color: #64748b;">8 rooms</small></div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$385</div>
+                            <small style="color: #059669;">+$40</small>
+                        </div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$375</div>
+                            <small style="color: #059669;">+$30</small>
+                        </div>
+                        <div class="grid-cell">
+                            <div class="rate-value">$345</div>
+                        </div>
+                        <div class="grid-cell">
+                            <div class="rate-value">$335</div>
+                        </div>
+                        <div class="grid-cell manually-overridden">
+                            <div class="rate-value">$340</div>
+                            <small style="color: #d97706;">Manual</small>
+                        </div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$365</div>
+                            <small style="color: #059669;">+$25</small>
+                        </div>
+                        <div class="grid-cell ai-suggested">
+                            <div class="ai-badge" title="AI Suggested">🧠</div>
+                            <div class="rate-value">$395</div>
+                            <small style="color: #059669;">+$45</small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotations">
+                    <div class="annotation-title">
+                        💡 Key Features Demonstrated
+                    </div>
+                    <ul class="annotation-list">
+                        <li><strong>AI Intelligence Badges (🧠):</strong> Instantly identify rates optimized by our AI engine</li>
+                        <li><strong>Revenue Impact Indicators:</strong> Green "+$25" shows expected revenue gain from AI suggestions</li>
+                        <li><strong>Manual Override Tracking:</strong> Yellow highlighting shows where revenue managers made manual adjustments</li>
+                        <li><strong>Grid-First Design:</strong> Familiar spreadsheet interface for power users with bulk editing capabilities</li>
+                        <li><strong>Real-Time Sync:</strong> All changes immediately reflect across channels and systems</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 2: AI Tooltip Panel -->
+        <div class="screen-section" id="screen-2">
+            <div class="screen-header">
+                <div class="screen-number">2/5</div>
+                <h2>🧠 Agentic AI Insight Panel</h2>
+                <p>Transparent AI reasoning with actionable insights and confidence metrics</p>
+            </div>
+            <div class="screen-content">
+                <div class="mockup-frame" style="position: relative; height: 400px;">
+                    <h3 style="margin-bottom: 1rem; color: #1e293b; font-weight: 600;">AI Recommendation Detail</h3>
+                    
+                    <!-- Simulated grid cell with tooltip -->
+                    <div style="position: absolute; top: 100px; left: 200px;">
+                        <div class="grid-cell ai-suggested" style="width: 80px; height: 60px; cursor: pointer;">
+                            <div class="ai-badge">🧠</div>
+                            <div class="rate-value">$285</div>
+                            <small style="color: #059669;">+$25</small>
+                        </div>
+                        
+                        <!-- AI Tooltip Panel -->
+                        <div class="tooltip-panel">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                <h4 style="color: #1e293b; font-weight: 600;">AI Revenue Insight</h4>
+                                <span style="background: #3b82f6; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">AGENTIC AI</span>
+                            </div>
+                            
+                            <div class="confidence-score">
+                                <span style="font-weight: 600; color: #374151;">87% Confidence</span>
+                                <div class="confidence-bar">
+                                    <div class="confidence-fill" style="width: 87%;"></div>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-bottom: 1rem;">
+                                <span class="risk-badge risk-high">HIGH PRIORITY</span>
+                                <span style="margin-left: 0.5rem; color: #64748b; font-size: 0.875rem;">Action recommended by 3:00 PM</span>
+                            </div>
+                            
+                            <div class="revenue-potential">
+                                <div style="font-weight: 600; color: #059669; margin-bottom: 0.5rem;">📈 Revenue Potential</div>
+                                <div style="font-size: 1.25rem; font-weight: 700; color: #1e293b;">+$1,850</div>
+                                <div style="font-size: 0.875rem; color: #64748b;">Weekend demand surge detected</div>
+                            </div>
+                            
+                            <div style="background: #f8fafc; padding: 1rem; border-radius: 6px; margin: 1rem 0; font-size: 0.875rem;">
+                                <div style="font-weight: 600; margin-bottom: 0.5rem; color: #374151;">💡 AI Reasoning:</div>
+                                <div style="color: #64748b; line-height: 1.5;">
+                                    • Competitor rates 18% higher<br>
+                                    • Local event driving 40% demand spike<br>
+                                    • Historical data shows 92% acceptance at this rate
+                                </div>
+                            </div>
+                            
+                            <div class="button-group">
+                                <button class="btn btn-primary">Apply Suggestion</button>
+                                <button class="btn btn-secondary">Review Details</button>
+                            </div>
+                            
+                            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.75rem; color: #64748b;">
+                                Last updated: 2 minutes ago • Auto-refresh: ON
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotations">
+                    <div class="annotation-title">
+                        🎯 CEO Value Proposition
+                    </div>
+                    <ul class="annotation-list">
+                        <li><strong>87% Confidence Score:</strong> Quantified AI certainty builds trust in automated decisions</li>
+                        <li><strong>Risk Assessment:</strong> "HIGH PRIORITY" indicates urgency and potential revenue loss if ignored</li>
+                        <li><strong>Revenue Impact:</strong> Clear $1,850 revenue potential makes business case immediately obvious</li>
+                        <li><strong>Transparent Reasoning:</strong> AI explains its logic with competitor data, demand patterns, and historical success rates</li>
+                        <li><strong>Actionable Interface:</strong> One-click application or detailed review maintains human control</li>
+                        <li><strong>Real-Time Intelligence:</strong> Live updates ensure decisions are based on current market conditions</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 3: Edit Pricing Modal -->
+        <div class="screen-section" id="screen-3">
+            <div class="screen-header">
+                <div class="screen-number">3/5</div>
+                <h2>✍️ Smart Pricing Editor</h2>
+                <p>AI-assisted rate editing with full transparency and manual override capabilities</p>
+            </div>
+            <div class="screen-content">
+                <div class="mockup-frame">
+                    <div class="modal-content" style="position: relative; box-shadow: 0 20px 40px rgba(0,0,0,0.15);">
+                        <div class="modal-header">
+                            <div>
+                                <h3 class="modal-title">Edit Rate - Standard Room</h3>
+                                <p style="color: #64748b; font-size: 0.875rem; margin-top: 0.25rem;">February 17, 2024 (Saturday)</p>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Current Rate</label>
+                            <input type="text" class="form-input" value="$260.00" readonly style="background: #f8fafc;">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Base rate set 3 days ago</small>
+                        </div>
+                        
+                        <div class="ai-explanation">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem;">
+                                <span>🧠</span>
+                                <strong style="color: #0369a1;">AI Recommendation</strong>
+                                <span class="risk-badge risk-low">87% Confidence</span>
+                            </div>
+                            <div style="font-size: 1.125rem; font-weight: 600; color: #1e293b; margin-bottom: 0.5rem;">$285.00 (+$25)</div>
+                            <div style="color: #475569; font-size: 0.875rem; line-height: 1.5;">
+                                <strong>Why this rate?</strong><br>
+                                • Tech conference downtown (2,500 attendees)<br>
+                                • Competitors averaging $295 within 2 miles<br>
+                                • Weekend demand typically 40% higher<br>
+                                • Similar events showed 95% sell-through at this rate
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label class="form-label">Manual Override</label>
+                            <input type="text" class="form-input" placeholder="Enter your rate..." style="border: 2px solid #4f46e5;">
+                            <small style="color: #64748b; margin-top: 0.25rem; display: block;">Leave blank to apply AI suggestion</small>
+                        </div>
+                        
+                        <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; color: #92400e; font-weight: 600; margin-bottom: 0.5rem;">
+                                ⚠️ Override Impact Analysis
+                            </div>
+                            <div style="color: #92400e; font-size: 0.875rem;">
+                                Manual rates will disable AI optimization for this date. Consider market conditions and competitor pricing before overriding.
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 1rem; margin: 1rem 0;">
+                            <div style="font-weight: 600; color: #059669; margin-bottom: 0.5rem;">💰 Revenue Forecast</div>
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <div style="font-size: 1.125rem; font-weight: 600; color: #1e293b;">$4,275</div>
+                                    <div style="font-size: 0.875rem; color: #64748b;">Expected room revenue</div>
+                                </div>
+                                <div style="text-align: right;">
+                                    <div style="color: #059669; font-weight: 600;">+13.2%</div>
+                                    <div style="font-size: 0.875rem; color: #64748b;">vs current rate</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.75rem; margin-top: 2rem;">
+                            <button class="btn btn-primary" style="flex: 1;">Apply AI Suggestion</button>
+                            <button class="btn btn-secondary">Save Manual Rate</button>
+                            <button class="btn btn-secondary">Cancel</button>
+                        </div>
+                        
+                        <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid #e2e8f0; font-size: 0.75rem; color: #64748b;">
+                            All changes will be logged in audit trail • Auto-sync to channels: ON
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotations">
+                    <div class="annotation-title">
+                        🎯 Intelligent Design Features
+                    </div>
+                    <ul class="annotation-list">
+                        <li><strong>Contextual AI Guidance:</strong> Shows current rate, AI suggestion, and detailed reasoning in one view</li>
+                        <li><strong>Impact Transparency:</strong> Warns users about disabling AI optimization when overriding manually</li>
+                        <li><strong>Revenue Forecasting:</strong> Shows expected revenue impact (+13.2%) to support decision making</li>
+                        <li><strong>Confidence Indicators:</strong> 87% confidence score helps users trust AI recommendations</li>
+                        <li><strong>Audit Trail Integration:</strong> Every change is automatically logged for compliance and analysis</li>
+                        <li><strong>One-Click Efficiency:</strong> Users can quickly apply AI suggestions or make informed overrides</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 4: Rate Change Event Flow -->
+        <div class="screen-section" id="screen-4">
+            <div class="screen-header">
+                <div class="screen-number">4/5</div>
+                <h2>📈 Real-Time System Updates</h2>
+                <p>How AI suggestions and manual changes cascade through the entire system</p>
+            </div>
+            <div class="screen-content">
+                <div class="mockup-frame">
+                    <h3 style="margin-bottom: 2rem; color: #1e293b; font-weight: 600;">Event-Driven Rate Change Process</h3>
+                    
+                    <div class="event-flow">
+                        <div class="flow-step active">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🧠</div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">AI Analyzes</div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Market conditions, events, competitor rates</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step active">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">Suggestion Created</div>
+                            <div style="font-size: 0.875rem; color: #64748b;">87% confidence, +$25 increase</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step active">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">👤</div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">User Decision</div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Apply, modify, or dismiss</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin: 2rem 0; padding: 1.5rem; background: linear-gradient(135deg, #ecfdf5, #d1fae5); border-radius: 12px; border: 2px solid #10b981;">
+                        <div style="font-weight: 600; color: #059669; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem;">
+                            ✅ Rate Change Applied: Standard Room → $285
+                        </div>
+                        <div style="color: #047857; font-size: 0.875rem;">Applied by: John Smith (Revenue Manager) • Time: 2:34 PM</div>
+                    </div>
+                    
+                    <div class="event-flow">
+                        <div class="flow-step active">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔄</div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">Grid Updates</div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Cell refreshes with new rate</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step active">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">💡</div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">AI Recalculates</div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Updates related recommendations</div>
+                        </div>
+                        <div class="flow-arrow">→</div>
+                        <div class="flow-step active">
+                            <div style="font-size: 2rem; margin-bottom: 0.5rem;">🌐</div>
+                            <div style="font-weight: 600; margin-bottom: 0.25rem;">Channel Sync</div>
+                            <div style="font-size: 0.875rem; color: #64748b;">Updates OTAs, PMS, CRS</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 2rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem;">
+                            <div style="font-weight: 600; color: #374151; margin-bottom: 0.75rem;">📊 Impact Analysis</div>
+                            <div style="margin-bottom: 0.5rem;">
+                                <span style="color: #64748b;">Revenue Forecast:</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">+$1,850</span>
+                            </div>
+                            <div style="margin-bottom: 0.5rem;">
+                                <span style="color: #64748b;">AI Confidence:</span>
+                                <span style="color: #3b82f6; font-weight: 600; margin-left: 0.5rem;">87%</span>
+                            </div>
+                            <div>
+                                <span style="color: #64748b;">Channel Updates:</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">5/5 Complete</span>
+                            </div>
+                        </div>
+                        
+                        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem;">
+                            <div style="font-weight: 600; color: #374151; margin-bottom: 0.75rem;">🔗 System Integrations</div>
+                            <div style="margin-bottom: 0.5rem;">
+                                <span style="color: #64748b;">Opera PMS:</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">✓ Synced</span>
+                            </div>
+                            <div style="margin-bottom: 0.5rem;">
+                                <span style="color: #64748b;">Booking.com:</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">✓ Updated</span>
+                            </div>
+                            <div>
+                                <span style="color: #64748b;">Revenue Analytics:</span>
+                                <span style="color: #059669; font-weight: 600; margin-left: 0.5rem;">✓ Refreshed</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotations">
+                    <div class="annotation-title">
+                        🔄 System Intelligence & Reliability
+                    </div>
+                    <ul class="annotation-list">
+                        <li><strong>End-to-End Automation:</strong> Single user action triggers cascade of system updates across all touchpoints</li>
+                        <li><strong>Real-Time Consistency:</strong> Grid, tooltips, forecasts, and channels all update simultaneously</li>
+                        <li><strong>AI Learning Loop:</strong> Each decision feeds back into AI models to improve future recommendations</li>
+                        <li><strong>Complete Auditability:</strong> Every step is logged with timestamp, user, and system response</li>
+                        <li><strong>Integration Reliability:</strong> 5/5 channels updated successfully with fallback mechanisms</li>
+                        <li><strong>Immediate Impact Visibility:</strong> Revenue managers see business impact within seconds of any change</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Screen 5: Audit Trail -->
+        <div class="screen-section" id="screen-5">
+            <div class="screen-header">
+                <div class="screen-number">5/5</div>
+                <h2>📋 Complete Audit Trail</h2>
+                <p>Full transparency and accountability for every pricing decision</p>
+            </div>
+            <div class="screen-content">
+                <div class="mockup-frame">
+                    <h3 style="margin-bottom: 1.5rem; color: #1e293b; font-weight: 600;">Rate Change History - Standard Room</h3>
+                    
+                    <div class="audit-trail">
+                        <div class="audit-entry">
+                            <div class="audit-timestamp">2:34 PM</div>
+                            <div class="audit-action">
+                                <div style="font-weight: 600; color: #059669;">Rate Applied: $260 → $285</div>
+                                <div style="color: #64748b; font-size: 0.875rem;">AI Suggestion accepted • Revenue impact: +$1,850</div>
+                            </div>
+                            <div class="audit-user">John Smith</div>
+                        </div>
+                        
+                        <div class="audit-entry">
+                            <div class="audit-timestamp">2:32 PM</div>
+                            <div class="audit-action">
+                                <div style="font-weight: 600; color: #3b82f6;">AI Recommendation Generated</div>
+                                <div style="color: #64748b; font-size: 0.875rem;">Confidence: 87% • Trigger: Event detection + competitor analysis</div>
+                            </div>
+                            <div class="audit-user">AI Agent</div>
+                        </div>
+                        
+                        <div class="audit-entry">
+                            <div class="audit-timestamp">11:15 AM</div>
+                            <div class="audit-action">
+                                <div style="font-weight: 600; color: #f59e0b;">Manual Override Applied</div>
+                                <div style="color: #64748b; font-size: 0.875rem;">$270 → $260 • Reason: "Corporate contract adjustment"</div>
+                            </div>
+                            <div class="audit-user">Sarah Davis</div>
+                        </div>
+                        
+                        <div class="audit-entry">
+                            <div class="audit-timestamp">9:45 AM</div>
+                            <div class="audit-action">
+                                <div style="font-weight: 600; color: #3b82f6;">AI Auto-Applied</div>
+                                <div style="color: #64748b; font-size: 0.875rem;">$255 → $270 • High confidence (94%) weekend optimization</div>
+                            </div>
+                            <div class="audit-user">AI Agent</div>
+                        </div>
+                        
+                        <div class="audit-entry">
+                            <div class="audit-timestamp">Yesterday</div>
+                            <div class="audit-action">
+                                <div style="font-weight: 600; color: #64748b;">Base Rate Set</div>
+                                <div style="color: #64748b; font-size: 0.875rem;">Initial rate: $255 • Source: Weekly rate review</div>
+                            </div>
+                            <div class="audit-user">Mike Johnson</div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 2rem; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem;">
+                        <div style="background: linear-gradient(135deg, #ecfdf5, #d1fae5); border: 1px solid #10b981; border-radius: 8px; padding: 1rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #059669;">94%</div>
+                            <div style="font-size: 0.875rem; color: #047857;">AI Acceptance Rate</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #eff6ff, #dbeafe); border: 1px solid #3b82f6; border-radius: 8px; padding: 1rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #2563eb;">12</div>
+                            <div style="font-size: 0.875rem; color: #1d4ed8;">Changes This Week</div>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #fefbf2, #fed7aa); border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem; text-align: center;">
+                            <div style="font-size: 1.5rem; font-weight: 600; color: #d97706;">$12.5K</div>
+                            <div style="font-size: 0.875rem; color: #92400e;">Revenue Impact</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="annotations">
+                    <div class="annotation-title">
+                        🔍 Compliance & Accountability
+                    </div>
+                    <ul class="annotation-list">
+                        <li><strong>Complete Traceability:</strong> Every rate change tracked with timestamp, user ID, and reasoning</li>
+                        <li><strong>AI Decision Transparency:</strong> Confidence scores and triggering factors logged for each AI action</li>
+                        <li><strong>Manual Override Documentation:</strong> Business reasons captured for all manual pricing decisions</li>
+                        <li><strong>Performance Metrics:</strong> 94% AI acceptance rate demonstrates system effectiveness</li>
+                        <li><strong>Revenue Attribution:</strong> $12.5K weekly impact clearly tied to AI recommendations</li>
+                        <li><strong>Regulatory Compliance:</strong> Audit trail meets hospitality industry standards for rate transparency</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- CEO Summary Section -->
+        <div class="ceo-insights">
+            <h3>🎯 Executive Summary: AI-Powered Revenue Intelligence</h3>
+            <p style="margin-bottom: 2rem; font-size: 1.1rem; line-height: 1.6;">
+                Our Agentic AI system demonstrates the perfect balance of intelligent automation and human control, 
+                delivering measurable revenue impact while maintaining complete transparency and accountability.
+            </p>
+            
+            <div class="metric-grid">
+                <div class="metric-card">
+                    <div class="metric-value">87%</div>
+                    <div class="metric-label">AI Confidence Score</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">+13.2%</div>
+                    <div class="metric-label">Revenue Uplift</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">94%</div>
+                    <div class="metric-label">User Acceptance Rate</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">2 min</div>
+                    <div class="metric-label">Decision to Channel Sync</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">100%</div>
+                    <div class="metric-label">Audit Trail Coverage</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">24/7</div>
+                    <div class="metric-label">AI Monitoring</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 2rem; padding: 1.5rem; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                <h4 style="color: #e2e8f0; margin-bottom: 1rem;">🚀 Competitive Advantages</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; font-size: 0.95rem;">
+                    <div>
+                        <strong>• Intelligent Automation:</strong> AI continuously optimizes rates while users maintain full control<br>
+                        <strong>• Complete Transparency:</strong> Every AI decision includes confidence scores and detailed reasoning<br>
+                        <strong>• Real-Time Adaptation:</strong> System responds to market changes within minutes
+                    </div>
+                    <div>
+                        <strong>• Audit-Ready Compliance:</strong> Full traceability for regulatory requirements<br>
+                        <strong>• Revenue Optimization:</strong> Measurable revenue impact with risk assessment<br>
+                        <strong>• User Empowerment:</strong> Revenue managers enhanced, not replaced, by AI
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="navigation">
+            <div class="nav-dot active" data-screen="1"></div>
+            <div class="nav-dot" data-screen="2"></div>
+            <div class="nav-dot" data-screen="3"></div>
+            <div class="nav-dot" data-screen="4"></div>
+            <div class="nav-dot" data-screen="5"></div>
+        </div>
+    </div>
+
+    <script>
+        // Simple navigation functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const navDots = document.querySelectorAll('.nav-dot');
+            const sections = document.querySelectorAll('.screen-section');
+            
+            navDots.forEach(dot => {
+                dot.addEventListener('click', function() {
+                    const targetScreen = this.dataset.screen;
+                    const targetSection = document.getElementById(`screen-${targetScreen}`);
+                    
+                    if (targetSection) {
+                        targetSection.scrollIntoView({ behavior: 'smooth' });
+                        
+                        // Update active nav dot
+                        navDots.forEach(d => d.classList.remove('active'));
+                        this.classList.add('active');
+                    }
+                });
+            });
+            
+            // Update active nav dot on scroll
+            window.addEventListener('scroll', function() {
+                let current = '';
+                
+                sections.forEach(section => {
+                    const sectionTop = section.offsetTop - 100;
+                    if (window.pageYOffset >= sectionTop) {
+                        current = section.getAttribute('id').split('-')[1];
+                    }
+                });
+                
+                navDots.forEach(dot => {
+                    dot.classList.remove('active');
+                    if (dot.dataset.screen === current) {
+                        dot.classList.add('active');
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html> 

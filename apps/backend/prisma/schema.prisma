@@ -1,0 +1,408 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ================================
+// AUTHENTICATION & USER MANAGEMENT
+// ================================
+
+model User {
+  id                String   @id @default(cuid())
+  email             String   @unique
+  username          String?  @unique
+  passwordHash      String
+  firstName         String?
+  lastName          String?
+  isActive          Boolean  @default(true)
+  lastLoginAt       DateTime?
+  failedLoginCount  Int      @default(0)
+  lockedUntil       DateTime?
+  mfaEnabled        Boolean  @default(false)
+  mfaSecret         String?
+  backupCodes       String[]
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  userRoles         UserRole[]
+  sessions          UserSession[]
+  auditLogs         AuditLog[]
+  aiSuggestions     AiSuggestion[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String @id @default(cuid())
+  name        String @unique // REVENUE_MANAGER, DISTRIBUTION_MANAGER, CORPORATE_ADMIN, AI_VIEWER, OPERATIONS
+  description String?
+  permissions String[] // Array of permission strings
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  userRoles   UserRole[]
+
+  @@map("roles")
+}
+
+model UserRole {
+  id         String @id @default(cuid())
+  userId     String
+  roleId     String
+  propertyId String? // Null for global roles
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, propertyId])
+  @@map("user_roles")
+}
+
+model UserSession {
+  id           String   @id @default(cuid())
+  userId       String
+  sessionToken String   @unique
+  refreshToken String?  @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relationships
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_sessions")
+}
+
+// ================================
+// PROPERTY & ORGANIZATION MANAGEMENT
+// ================================
+
+model Organization {
+  id          String @id @default(cuid())
+  name        String
+  code        String @unique
+  description String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  properties  Property[]
+
+  @@map("organizations")
+}
+
+model Property {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  code           String  @unique
+  address        String?
+  city           String?
+  country        String?
+  timezone       String  @default("UTC")
+  currency       String  @default("USD")
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  roomTypes      RoomType[]
+  ratePlans      RatePlan[]
+  rateInventory  RateInventory[]
+  channelMappings ChannelMapping[]
+  competitorRates CompetitorRate[]
+  aiSuggestions  AiSuggestion[]
+  auditLogs      AuditLog[]
+  userRoles      UserRole[]
+
+  @@map("properties")
+}
+
+// ================================
+// ROOM TYPES & RATE PLANS
+// ================================
+
+model RoomType {
+  id          String @id @default(cuid())
+  propertyId  String
+  code        String // STD, DLX, STE, etc.
+  name        String
+  description String?
+  capacity    Int    @default(1)
+  maxOccupancy Int   @default(2)
+  baseRate    Decimal @db.Decimal(10, 2)
+  isActive    Boolean @default(true)
+  sortOrder   Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rateInventory RateInventory[]
+
+  @@unique([propertyId, code])
+  @@map("room_types")
+}
+
+model RatePlan {
+  id          String @id @default(cuid())
+  propertyId  String
+  code        String // BAR, CORP, GOV, etc.
+  name        String
+  description String?
+  isPublic    Boolean @default(true)
+  isActive    Boolean @default(true)
+  sortOrder   Int    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  property      Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  rateInventory RateInventory[]
+
+  @@unique([propertyId, code])
+  @@map("rate_plans")
+}
+
+// ================================
+// RATES, INVENTORY & RESTRICTIONS
+// ================================
+
+model RateInventory {
+  id         String   @id @default(cuid())
+  propertyId String
+  roomTypeId String
+  ratePlanId String
+  date       DateTime @db.Date
+  rate       Decimal  @db.Decimal(10, 2)
+  inventory  Int
+  
+  // Restrictions
+  minLos     Int?     // Minimum Length of Stay
+  maxLos     Int?     // Maximum Length of Stay
+  cta        Boolean  @default(false) // Closed to Arrival
+  ctd        Boolean  @default(false) // Closed to Departure
+  stopSell   Boolean  @default(false) // Stop Sell
+  
+  // Metadata
+  lastSyncAt DateTime?
+  syncStatus String?  // SUCCESS, PENDING, FAILED
+  syncError  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relationships
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  roomType   RoomType @relation(fields: [roomTypeId], references: [id], onDelete: Cascade)
+  ratePlan   RatePlan @relation(fields: [ratePlanId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, roomTypeId, ratePlanId, date])
+  @@index([propertyId, date])
+  @@index([date])
+  @@map("rate_inventory")
+}
+
+// ================================
+// CHANNEL MANAGEMENT
+// ================================
+
+model Channel {
+  id          String @id @default(cuid())
+  code        String @unique // BOOKING_COM, EXPEDIA, AGODA, etc.
+  name        String
+  description String?
+  apiEndpoint String?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  channelMappings ChannelMapping[]
+
+  @@map("channels")
+}
+
+model ChannelMapping {
+  id                String @id @default(cuid())
+  propertyId        String
+  channelId         String
+  
+  // Authentication
+  apiKey            String?
+  apiSecret         String?
+  username          String?
+  password          String?
+  
+  // Mapping Configuration
+  roomTypeMappings  Json   // { "STD": "standard-room", "DLX": "deluxe-room" }
+  ratePlanMappings  Json   // { "BAR": "best-available-rate", "CORP": "corporate-rate" }
+  
+  // Sync Settings
+  syncEnabled       Boolean @default(true)
+  syncFrequency     Int     @default(5) // minutes
+  lastSyncAt        DateTime?
+  syncStatus        String? // SUCCESS, PENDING, FAILED
+  syncError         String?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relationships
+  property          Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  channel           Channel  @relation(fields: [channelId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, channelId])
+  @@map("channel_mappings")
+}
+
+// ================================
+// COMPETITOR RATE INTELLIGENCE
+// ================================
+
+model CompetitorProperty {
+  id          String @id @default(cuid())
+  propertyId  String // Our property
+  name        String
+  code        String // Competitor identifier
+  address     String?
+  starRating  Int?
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  competitorRates CompetitorRate[]
+
+  @@unique([propertyId, code])
+  @@map("competitor_properties")
+}
+
+model CompetitorRate {
+  id                   String @id @default(cuid())
+  propertyId           String // Our property
+  competitorPropertyId String
+  date                 DateTime @db.Date
+  roomTypeCode         String? // STD, DLX, etc.
+  rate                 Decimal  @db.Decimal(10, 2)
+  currency             String   @default("USD")
+  availability         String?  // AVAILABLE, LIMITED, SOLD_OUT
+  source               String?  // Rate shopper source
+  scrapedAt            DateTime @default(now())
+  createdAt            DateTime @default(now())
+
+  // Relationships
+  property             Property           @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  competitorProperty   CompetitorProperty @relation(fields: [competitorPropertyId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, competitorPropertyId, date, roomTypeCode])
+  @@index([propertyId, date])
+  @@map("competitor_rates")
+}
+
+// ================================
+// AI INSIGHTS & SUGGESTIONS
+// ================================
+
+model AiSuggestion {
+  id              String   @id @default(cuid())
+  propertyId      String
+  userId          String?  // User who will receive the suggestion
+  roomTypeId      String?
+  ratePlanId      String?
+  date            DateTime @db.Date
+  
+  // Suggestion Details
+  suggestionType  String   // RATE_ADJUSTMENT, INVENTORY_OPTIMIZATION, RESTRICTION_CHANGE
+  currentValue    Decimal? @db.Decimal(10, 2)
+  suggestedValue  Decimal? @db.Decimal(10, 2)
+  confidence      Float    // 0.0 to 1.0
+  reasoning       String   // AI explanation
+  
+  // Metadata
+  isApplied       Boolean  @default(false)
+  appliedAt       DateTime?
+  appliedBy       String?  // User ID who applied
+  rejectedAt      DateTime?
+  rejectedBy      String?  // User ID who rejected
+  rejectionReason String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relationships
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, date])
+  @@index([isApplied])
+  @@map("ai_suggestions")
+}
+
+// ================================
+// AUDIT TRAIL & LOGGING
+// ================================
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  propertyId  String?
+  userId      String?
+  
+  // Action Details
+  action      String   // CREATE, UPDATE, DELETE, SYNC, LOGIN, etc.
+  entityType  String   // USER, RATE_INVENTORY, CHANNEL_MAPPING, etc.
+  entityId    String?
+  
+  // Change Details
+  oldValues   Json?    // Previous state
+  newValues   Json?    // New state
+  changes     Json?    // Specific changes made
+  
+  // Context
+  ipAddress   String?
+  userAgent   String?
+  source      String?  // WEB, API, SYNC, etc.
+  
+  createdAt   DateTime @default(now())
+
+  // Relationships
+  property    Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([propertyId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+  @@map("audit_logs")
+}
+
+// ================================
+// SYSTEM CONFIGURATION
+// ================================
+
+model SystemConfig {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  isPublic    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("system_config")
+} 
