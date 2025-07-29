@@ -428,7 +428,8 @@ export default function GlobalBulkEditModal({ isOpen, onClose, onApply, isDark =
       issues.push('Select at least one room type');
     }
     
-    if (bulkEditData.ratePlans.length === 0) {
+    // Rate plans are only required for rates, not inventory  
+    if (bulkEditData.editType === 'rates' && bulkEditData.ratePlans.length === 0) {
       issues.push('Select at least one rate plan');
     }
     
@@ -466,9 +467,16 @@ export default function GlobalBulkEditModal({ isOpen, onClose, onApply, isDark =
 
   // Enhanced impact calculation for better UX
   const calculateImpact = () => {
-    const combinations = bulkEditData.roomTypes.length * bulkEditData.ratePlans.length * 
-                        (bulkEditData.dateSelection.selectedDates.length || Object.values(bulkEditData.daySelection).filter(Boolean).length);
-    return combinations;
+    if (bulkEditData.editType === 'inventory') {
+      // For inventory: only room types × dates (inventory is room-level, not rate plan-level)
+      const dateCount = bulkEditData.dateSelection.selectedDates.length || Object.values(bulkEditData.daySelection).filter(Boolean).length;
+      return bulkEditData.roomTypes.length * dateCount;
+    } else {
+      // For rates: room types × rate plans × dates
+      const combinations = bulkEditData.roomTypes.length * bulkEditData.ratePlans.length * 
+                          (bulkEditData.dateSelection.selectedDates.length || Object.values(bulkEditData.daySelection).filter(Boolean).length);
+      return combinations;
+    }
   };
 
   if (!isOpen) return null;
@@ -638,69 +646,71 @@ export default function GlobalBulkEditModal({ isOpen, onClose, onApply, isDark =
                 </div>
               </div>
 
-              {/* Rate Plan Selection - Enhanced */}
-              <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 p-6 rounded-xl border border-purple-100 dark:border-purple-800">
-                <label className="text-base font-semibold mb-4 block flex items-center gap-2">
-                  <Tag className="w-5 h-5 text-purple-500" />
-                  Rate Plans
-                  <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
-                    bulkEditData.ratePlans.length > 0 
-                      ? 'bg-purple-500 text-white' 
-                      : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
-                  }`}>
-                    {bulkEditData.ratePlans.length} selected
-                  </span>
-                </label>
-                <div className="relative">
-                  <button
-                    onClick={() => setRatePlanDropdown(!ratePlanDropdown)}
-                    className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all duration-200 ${
-                      ratePlanDropdown
-                        ? 'border-purple-500 ring-4 ring-purple-500/20'
-                        : isDark 
-                        ? 'bg-gray-800 border-gray-700 hover:border-gray-600' 
-                        : 'bg-white border-gray-300 hover:border-gray-400'
-                    }`}
-                  >
-                    <span className="text-sm font-medium">
-                      {bulkEditData.ratePlans.length === 0 
-                        ? 'Select rate plans...' 
-                        : `${bulkEditData.ratePlans.length} rate plan(s) selected`}
+              {/* Rate Plan Selection - Enhanced - Only shown for Rates */}
+              {bulkEditData.editType === 'rates' && (
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/30 dark:to-pink-950/30 p-6 rounded-xl border border-purple-100 dark:border-purple-800">
+                  <label className="text-base font-semibold mb-4 block flex items-center gap-2">
+                    <Tag className="w-5 h-5 text-purple-500" />
+                    Rate Plans
+                    <span className={`ml-2 px-2 py-1 text-xs rounded-full ${
+                      bulkEditData.ratePlans.length > 0 
+                        ? 'bg-purple-500 text-white' 
+                        : 'bg-gray-200 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
+                    }`}>
+                      {bulkEditData.ratePlans.length} selected
                     </span>
-                    <Settings className={`w-5 h-5 transition-transform duration-200 ${ratePlanDropdown ? 'rotate-180' : ''}`} />
-                  </button>
-                  
-                  {ratePlanDropdown && (
-                    <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl border-2 border-purple-200 shadow-xl z-20 max-h-80 overflow-y-auto ${
-                      isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'
-                    } animate-in slide-in-from-top-2`}>
-                      {ratePlans.map((ratePlan) => (
-                        <button
-                          key={ratePlan.id}
-                          onClick={() => handleRatePlanToggle(ratePlan.id)}
-                          className={`w-full p-4 text-left hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all duration-200 flex items-center gap-4 ${
-                            bulkEditData.ratePlans.includes(ratePlan.id) ? 'bg-purple-50 dark:bg-purple-900/30 border-l-4 border-purple-500' : ''
-                          }`}
-                        >
-                          <div className={`w-4 h-4 rounded-full bg-${ratePlan.color}-500 shadow-lg`}></div>
-                          <div className="flex-1">
-                            <div className="font-semibold text-sm">{ratePlan.name}</div>
-                            <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
-                              {ratePlan.code} • {ratePlan.category}
+                  </label>
+                  <div className="relative">
+                    <button
+                      onClick={() => setRatePlanDropdown(!ratePlanDropdown)}
+                      className={`w-full p-4 rounded-xl border-2 flex items-center justify-between transition-all duration-200 ${
+                        ratePlanDropdown
+                          ? 'border-purple-500 ring-4 ring-purple-500/20'
+                          : isDark 
+                          ? 'bg-gray-800 border-gray-700 hover:border-gray-600' 
+                          : 'bg-white border-gray-300 hover:border-gray-400'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">
+                        {bulkEditData.ratePlans.length === 0 
+                          ? 'Select rate plans...' 
+                          : `${bulkEditData.ratePlans.length} rate plan(s) selected`}
+                      </span>
+                      <Settings className={`w-5 h-5 transition-transform duration-200 ${ratePlanDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    
+                    {ratePlanDropdown && (
+                      <div className={`absolute top-full left-0 right-0 mt-2 rounded-xl border-2 border-purple-200 shadow-xl z-20 max-h-80 overflow-y-auto ${
+                        isDark ? 'bg-gray-800 border-gray-700' : 'bg-white'
+                      } animate-in slide-in-from-top-2`}>
+                        {ratePlans.map((ratePlan) => (
+                          <button
+                            key={ratePlan.id}
+                            onClick={() => handleRatePlanToggle(ratePlan.id)}
+                            className={`w-full p-4 text-left hover:bg-purple-50 dark:hover:bg-purple-900/30 transition-all duration-200 flex items-center gap-4 ${
+                              bulkEditData.ratePlans.includes(ratePlan.id) ? 'bg-purple-50 dark:bg-purple-900/30 border-l-4 border-purple-500' : ''
+                            }`}
+                          >
+                            <div className={`w-4 h-4 rounded-full bg-${ratePlan.color}-500 shadow-lg`}></div>
+                            <div className="flex-1">
+                              <div className="font-semibold text-sm">{ratePlan.name}</div>
+                              <div className={`text-xs ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
+                                {ratePlan.code} • {ratePlan.category}
+                              </div>
+                              <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
+                                {ratePlan.description}
+                              </div>
                             </div>
-                            <div className={`text-xs ${isDark ? 'text-gray-500' : 'text-gray-500'} mt-1`}>
-                              {ratePlan.description}
-                            </div>
-                          </div>
-                          {bulkEditData.ratePlans.includes(ratePlan.id) && (
-                            <CheckCircle className="w-5 h-5 text-purple-500 animate-in zoom-in-75" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                            {bulkEditData.ratePlans.includes(ratePlan.id) && (
+                              <CheckCircle className="w-5 h-5 text-purple-500 animate-in zoom-in-75" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Enhanced Day Selection */}
               <div className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 p-6 rounded-xl border border-green-100 dark:border-green-800">
@@ -1056,10 +1066,12 @@ export default function GlobalBulkEditModal({ isOpen, onClose, onApply, isDark =
                       <Building className="w-4 h-4" />
                       {bulkEditData.roomTypes.length} room type(s)
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Tag className="w-4 h-4" />
-                      {bulkEditData.ratePlans.length} rate plan(s)
-                    </div>
+                    {bulkEditData.editType === 'rates' && (
+                      <div className="flex items-center gap-2">
+                        <Tag className="w-4 h-4" />
+                        {bulkEditData.ratePlans.length} rate plan(s)
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center gap-2">

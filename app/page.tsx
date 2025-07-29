@@ -818,6 +818,24 @@ export default function RevenuePage() {
   } | null>(null);
   const inlineInputRef = useRef<HTMLInputElement>(null);
 
+  // Ref to track if we've already focused for the current edit session
+  const hasInitializedEdit = useRef<boolean>(false);
+
+  // Focus inline input when edit starts
+  useEffect(() => {
+    if (inlineEdit && inlineInputRef.current) {
+      // Only focus and select on the initial edit, not on every value change
+      if (!hasInitializedEdit.current) {
+        inlineInputRef.current.focus();
+        inlineInputRef.current.select();
+        hasInitializedEdit.current = true;
+      }
+    } else {
+      // Reset the flag when edit is cancelled/completed
+      hasInitializedEdit.current = false;
+    }
+  }, [inlineEdit]);
+
   // Property and Competitor State Management
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [selectedCompetitors, setSelectedCompetitors] = useState<any[]>([]);
@@ -2930,11 +2948,72 @@ export default function RevenuePage() {
     });
   };
 
+  /**
+   * Enhanced inline keyboard handler with Tab navigation for quick date-to-date editing
+   * Supports Tab (next date) and Shift+Tab (previous date) navigation
+   * @param e - Keyboard event
+   */
   const handleInlineKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       saveInlineEdit();
     } else if (e.key === 'Escape') {
       cancelInlineEdit();
+    } else if (e.key === 'Tab' && inlineEdit) {
+      e.preventDefault(); // Prevent default tab behavior
+      
+      // Save current edit first
+      saveInlineEdit();
+      
+      // Calculate next date index with wrapping
+      const currentDateIndex = inlineEdit.dateIndex;
+      const nextDateIndex = e.shiftKey 
+        ? (currentDateIndex - 1 + dates.length) % dates.length  // Shift+Tab: Previous date
+        : (currentDateIndex + 1) % dates.length;               // Tab: Next date
+      
+      // Get next cell value based on the current edit type
+      let nextValue = 0;
+      
+      if (inlineEdit.type === 'price' && inlineEdit.productId) {
+        // Find the room and product to get the next date's price
+        const roomType = sampleRoomTypes.find(r => r.id === inlineEdit.roomId);
+        const product = roomType?.products.find(p => p.id === inlineEdit.productId);
+        if (product && product.data[nextDateIndex]) {
+          nextValue = product.data[nextDateIndex].rate;
+        }
+      } else if (inlineEdit.type === 'inventory') {
+        // Find the room to get the next date's inventory
+        const roomType = sampleRoomTypes.find(r => r.id === inlineEdit.roomId);
+        if (roomType && roomType.inventoryData[nextDateIndex]) {
+          nextValue = roomType.inventoryData[nextDateIndex].inventory;
+        }
+      }
+      
+      // Start inline edit for the next date with a small delay to ensure DOM updates
+      setTimeout(() => {
+        setInlineEdit({
+          type: inlineEdit.type,
+          roomId: inlineEdit.roomId,
+          productId: inlineEdit.productId,
+          dateIndex: nextDateIndex,
+          value: nextValue.toString(),
+          originalValue: nextValue
+        });
+      }, 50);
+      
+      // Log the navigation for analytics
+      logEvent({
+        category: 'Navigation',
+        action: 'Tab Navigation',
+        label: `${inlineEdit.type}_edit_${e.shiftKey ? 'previous' : 'next'}_date`,
+        value: nextDateIndex,
+        details: {
+          fromDateIndex: currentDateIndex,
+          toDateIndex: nextDateIndex,
+          editType: inlineEdit.type,
+          roomId: inlineEdit.roomId,
+          productId: inlineEdit.productId
+        }
+      });
     }
   };
 
@@ -2972,14 +3051,6 @@ export default function RevenuePage() {
   const cancelInlineEdit = () => {
     setInlineEdit(null);
   };
-
-  // Focus inline input when edit starts
-  useEffect(() => {
-    if (inlineEdit && inlineInputRef.current) {
-      inlineInputRef.current.focus();
-      inlineInputRef.current.select();
-    }
-  }, [inlineEdit]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -4731,14 +4802,26 @@ export default function RevenuePage() {
     setIsBulkEditModalOpen(true);
   };
 
+  /**
+   * Enhanced bulk edit handler with support for rate plan-specific inventory allocations
+   * @param data - Bulk edit data including inventory allocations
+   */
   const handleBulkEditApply = (data: any) => {
     console.log('🎯 Bulk Edit Applied:', data);
     
     // Here you would implement the actual bulk edit logic
     // Example: Update your data store with the bulk changes
     
-    // Enhanced success notification
-    const successMessage = `Successfully updated ${data.roomTypes.length} room types and ${data.ratePlans.length} rate plans across ${data.dateSelection.selectedDates.length} dates.`;
+    // Enhanced success notification with inventory allocation support
+    let successMessage = '';
+    
+    if (data.editType === 'inventory' && data.inventoryMode === 'advanced') {
+      const allocationsCount = data.inventoryAllocations?.length || 0;
+      successMessage = `Successfully configured ${allocationsCount} rate plan inventory allocations across ${data.dateSelection.selectedDates.length} dates.`;
+    } else {
+      successMessage = `Successfully updated ${data.roomTypes.length} room types and ${data.ratePlans.length} rate plans across ${data.dateSelection.selectedDates.length} dates.`;
+    }
+    
     console.log('✅', successMessage);
     
     // If you have a toast system, use it here
@@ -4849,7 +4932,7 @@ export default function RevenuePage() {
               {/* Inline Edit Help */}
               <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg">
                 <Info className="w-4 h-4" />
-                <span>Double-click to edit inline • Click for detailed modal</span>
+                <span>Double-click to edit inline • Tab to navigate dates • Click for detailed modal</span>
               </div>
 
               {/* Enhanced Filter Button */}
@@ -5029,19 +5112,27 @@ export default function RevenuePage() {
                             {inlineEdit?.type === 'inventory' && 
                              inlineEdit.roomId === roomType.id && 
                              inlineEdit.dateIndex === dateIndex ? (
-                              <input
-                                ref={inlineInputRef}
-                                type="number"
-                                value={inlineEdit.value}
-                                onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
-                                onKeyDown={handleInlineKeyDown}
-                                onBlur={saveInlineEdit}
-                                className="w-16 h-8 text-center text-lg font-bold bg-white dark:bg-gray-700 border border-blue-500 
-                                         rounded px-1 text-blue-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                min="0"
-                                max="999"
-                                autoFocus
-                              />
+                              <div className="space-y-1">
+                                <input
+                                  ref={inlineInputRef}
+                                  type="number"
+                                  value={inlineEdit.value}
+                                  onChange={(e) => setInlineEdit({ ...inlineEdit, value: e.target.value })}
+                                  onKeyDown={handleInlineKeyDown}
+                                  onBlur={saveInlineEdit}
+                                  className="w-16 h-8 text-center text-lg font-bold bg-white dark:bg-gray-700 border border-blue-500 
+                                           rounded px-1 text-blue-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                  min="0"
+                                  max="999"
+                                  autoFocus
+                                />
+                                {/* Tab Navigation Hint */}
+                                <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+                                  <div className="bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                                    Tab: Next date • Shift+Tab: Previous
+                                  </div>
+                                </div>
+                              </div>
                             ) : (
                               <>
                                 {/* Large, Clear Number */}
@@ -5178,7 +5269,12 @@ export default function RevenuePage() {
                                     max="999999"
                                     autoFocus
                                   />
-                                  <div className="text-xs text-blue-600 dark:text-blue-400">Enter/Esc</div>
+                                  {/* Tab Navigation Hint */}
+                                  <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-50">
+                                    <div className="bg-black/80 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+                                      Tab: Next date • Shift+Tab: Previous
+                                    </div>
+                                  </div>
                                 </div>
                               ) : (
                                 <>
