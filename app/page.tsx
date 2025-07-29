@@ -7,7 +7,7 @@
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { 
   User, Plus, Calendar, Search, Filter, Download, Upload, ChevronDown, ChevronUp, 
   Sun, Moon, Bot, Sparkles, TrendingUp, TrendingDown, AlertTriangle, Target, Star, 
@@ -37,7 +37,6 @@ import TutorialOverlay from '../components/TutorialOverlay';
 import SummarizedAITooltip from "../components/SummarizedAITooltip";
 import EnhancedAIRecommendationTooltip from "../components/EnhancedAIRecommendationTooltip";
 import EnhancedAutoAgentTooltip from "../components/EnhancedAutoAgentTooltip";
-import { createEnhancedApplyHandler } from "../components/EnhancedApplyHandler";
 import { Toaster, useToast } from "../components/ui/toast";
 // Import our standardized types for data consistency
 import { 
@@ -47,7 +46,6 @@ import {
   StandardizedCellData, 
   RateSource 
 } from '../types/rate-consistency';
-import { useConsistentRateData } from '../hooks/useConsistentRateData';
 import { WorkingBulkRestrictions } from '@/components/WorkingBulkRestrictions';
 import GlobalBulkEditModal from '../components/GlobalBulkEditModal';
 
@@ -2090,7 +2088,8 @@ export default function RevenuePage() {
   };
 
   // Sample room types and products
-  const sampleRoomTypes: RoomType[] = useMemo(() => [
+  // Convert from useMemo to useState to allow real-time updates
+  const [sampleRoomTypes, setSampleRoomTypes] = useState<RoomType[]>(() => [
     {
       id: '1',
       name: 'Standard Room',
@@ -2495,7 +2494,7 @@ export default function RevenuePage() {
         }
       ]
     }
-  ], [dates, sampleInsights, sampleEvents]);
+  ]);
 
   // Create room type and rate plan data for the enhanced filter
   const roomTypeOptions = useMemo(() => {
@@ -2556,7 +2555,7 @@ export default function RevenuePage() {
   };
 
   const toggleRoomExpansion = (roomId: string) => {
-    setRoomTypes((prev: RoomType[]) => 
+    setSampleRoomTypes((prev: RoomType[]) => 
       prev.map((room: RoomType) => 
         room.id === roomId 
           ? { ...room, isExpanded: !room.isExpanded }
@@ -2646,6 +2645,41 @@ export default function RevenuePage() {
       setChanges(prev => [...prev, change]);
     }
 
+    // Update the sampleRoomTypes data structure for grid updates
+    if (selectedProduct) {
+      setSampleRoomTypes(prev => 
+        prev.map(roomType => {
+          if (roomType.name === selectedProduct.room) {
+            return {
+              ...roomType,
+              products: roomType.products.map(product => {
+                if (product.name === selectedProduct.product) {
+                  return {
+                    ...product,
+                    data: product.data.map((data, index) => {
+                      // For now, update the first date - in a real app, you'd identify the specific date
+                      if (index === 0) {
+                        return {
+                          ...data,
+                          rate: newPrice,
+                          originalRate: data.originalRate || data.rate,
+                          isChanged: newPrice !== (data.originalRate || data.rate),
+                          lastModified: new Date()
+                        };
+                      }
+                      return data;
+                    })
+                  };
+                }
+                return product;
+              })
+            };
+          }
+          return roomType;
+        })
+      );
+    }
+
     // Log the price change
     logEvent({
       eventType: 'price_update',
@@ -2687,7 +2721,7 @@ export default function RevenuePage() {
       setChanges(prev => [...prev, change]);
     }
     
-    setRoomTypes(prev => 
+    setSampleRoomTypes(prev => 
       prev.map(roomType => {
         if (roomType.name === selectedInventory?.room) {
           const updatedInventoryData = [...roomType.inventoryData];
@@ -2811,7 +2845,7 @@ export default function RevenuePage() {
 
     
     // Update room type data to mark corresponding cells as changed for visual feedback
-    setRoomTypes(prev => 
+    setSampleRoomTypes(prev => 
       prev.map(roomType => {
         if (roomType.name === "Deluxe Room") {
           return {
@@ -3043,6 +3077,54 @@ export default function RevenuePage() {
       
       // Update the data (in real app, this would update the state/database)
       console.log(`Inline ${inlineEdit.type} update:`, change);
+      
+      // Update the sampleRoomTypes data structure
+      setSampleRoomTypes(prev => {
+        return prev.map(roomType => {
+          if (roomType.id === inlineEdit.roomId) {
+            return {
+              ...roomType,
+              inventoryData: inlineEdit.type === 'inventory'
+                ? roomType.inventoryData.map((inv, index) => {
+                    if (index === inlineEdit.dateIndex) {
+                      return {
+                        ...inv,
+                        inventory: newValue,
+                        originalInventory: inv.originalInventory || inv.inventory,
+                        isChanged: newValue !== (inv.originalInventory || inv.inventory),
+                        lastModified: new Date()
+                      };
+                    }
+                    return inv;
+                  })
+                : roomType.inventoryData,
+              products: inlineEdit.type === 'price'
+                ? roomType.products.map(product => {
+                    if (product.id === inlineEdit.productId) {
+                      return {
+                        ...product,
+                        data: product.data.map((data, index) => {
+                          if (index === inlineEdit.dateIndex) {
+                            return {
+                              ...data,
+                              rate: newValue,
+                              originalRate: data.originalRate || data.rate,
+                              isChanged: newValue !== (data.originalRate || data.rate),
+                              lastModified: new Date()
+                            };
+                          }
+                          return data;
+                        })
+                      };
+                    }
+                    return product;
+                  })
+                : roomType.products
+            };
+          }
+          return roomType;
+        });
+      });
     }
     
     setInlineEdit(null);
@@ -4809,8 +4891,132 @@ export default function RevenuePage() {
   const handleBulkEditApply = (data: any) => {
     console.log('🎯 Bulk Edit Applied:', data);
     
-    // Here you would implement the actual bulk edit logic
-    // Example: Update your data store with the bulk changes
+    // Update sampleRoomTypes with bulk changes
+    setSampleRoomTypes(prev => {
+      return prev.map(roomType => {
+        // Check if this room type is selected for bulk edit
+        if (data.roomTypes.some((selectedRoom: any) => selectedRoom.id === roomType.id)) {
+          const updatedRoomType = { ...roomType };
+          
+          // Handle price updates
+          if (data.editType === 'price' && data.priceAdjustment) {
+            updatedRoomType.products = roomType.products.map(product => {
+              // Check if this rate plan is selected
+              if (data.ratePlans.some((selectedPlan: any) => selectedPlan.id === product.id)) {
+                return {
+                  ...product,
+                  data: product.data.map((cellData, dateIndex) => {
+                    // Check if this date is selected
+                    const isDateSelected = data.dateSelection.selectedDates.some((selectedDate: string) => {
+                      const dateStr = dates[dateIndex]?.dateStr;
+                      return dateStr === selectedDate;
+                    });
+                    
+                    if (isDateSelected) {
+                      let newRate = cellData.rate;
+                      
+                      // Apply price adjustment based on type
+                      if (data.priceAdjustment.type === 'fixed') {
+                        newRate = data.priceAdjustment.operator === 'increase' 
+                          ? cellData.rate + data.priceAdjustment.value
+                          : cellData.rate - data.priceAdjustment.value;
+                      } else if (data.priceAdjustment.type === 'percentage') {
+                        const percentage = data.priceAdjustment.value / 100;
+                        newRate = data.priceAdjustment.operator === 'increase'
+                          ? cellData.rate * (1 + percentage)
+                          : cellData.rate * (1 - percentage);
+                      } else if (data.priceAdjustment.type === 'absolute') {
+                        newRate = data.priceAdjustment.value;
+                      }
+                      
+                      // Ensure minimum value
+                      newRate = Math.max(newRate, 0);
+                      
+                      return {
+                        ...cellData,
+                        rate: newRate,
+                        originalRate: cellData.originalRate || cellData.rate,
+                        isChanged: newRate !== (cellData.originalRate || cellData.rate),
+                        lastModified: new Date()
+                      };
+                    }
+                    
+                    return cellData;
+                  })
+                };
+              }
+              return product;
+            });
+          }
+          
+          // Handle inventory updates
+          if (data.editType === 'inventory' && data.inventoryAdjustment) {
+            updatedRoomType.inventoryData = roomType.inventoryData.map((invData, dateIndex) => {
+              // Check if this date is selected
+              const isDateSelected = data.dateSelection.selectedDates.some((selectedDate: string) => {
+                const dateStr = dates[dateIndex]?.dateStr;
+                return dateStr === selectedDate;
+              });
+              
+              if (isDateSelected) {
+                let newInventory = invData.inventory;
+                
+                // Apply inventory adjustment based on type
+                if (data.inventoryAdjustment.type === 'fixed') {
+                  newInventory = data.inventoryAdjustment.operator === 'increase'
+                    ? invData.inventory + data.inventoryAdjustment.value
+                    : invData.inventory - data.inventoryAdjustment.value;
+                } else if (data.inventoryAdjustment.type === 'percentage') {
+                  const percentage = data.inventoryAdjustment.value / 100;
+                  newInventory = data.inventoryAdjustment.operator === 'increase'
+                    ? Math.round(invData.inventory * (1 + percentage))
+                    : Math.round(invData.inventory * (1 - percentage));
+                } else if (data.inventoryAdjustment.type === 'absolute') {
+                  newInventory = data.inventoryAdjustment.value;
+                }
+                
+                // Ensure valid inventory range
+                newInventory = Math.max(0, Math.min(newInventory, 999));
+                
+                return {
+                  ...invData,
+                  inventory: newInventory,
+                  originalInventory: invData.originalInventory || invData.inventory,
+                  isChanged: newInventory !== (invData.originalInventory || invData.inventory),
+                  lastModified: new Date()
+                };
+              }
+              
+              return invData;
+            });
+          }
+          
+          return updatedRoomType;
+        }
+        
+        return roomType;
+      });
+    });
+    
+    // Create change records for bulk edit
+    const bulkChanges = [];
+    const affectedCombinations = data.roomTypes.length * data.ratePlans.length * data.dateSelection.selectedDates.length;
+    
+    // Add bulk change record
+    const bulkChange = {
+      id: Date.now().toString(),
+      type: data.editType as 'price' | 'inventory',
+      room: data.roomTypes.map((rt: any) => rt.name).join(', '),
+      product: data.editType === 'price' ? data.ratePlans.map((rp: any) => rp.name).join(', ') : undefined,
+      date: `${data.dateSelection.selectedDates.length} dates`,
+      oldValue: 'Multiple values',
+      newValue: `Bulk ${data.editType} update`,
+      timestamp: new Date(),
+      isBulkEdit: true,
+      affectedCells: affectedCombinations
+    };
+    
+    setChanges(prev => [...prev, bulkChange]);
     
     // Enhanced success notification with inventory allocation support
     let successMessage = '';
@@ -4823,6 +5029,20 @@ export default function RevenuePage() {
     }
     
     console.log('✅', successMessage);
+    
+    // Log the bulk edit event
+    logEvent({
+      eventType: data.editType === 'price' ? 'price_update' : 'inventory_update',
+      roomType: data.roomTypes.map((rt: any) => rt.name).join(', '),
+      ratePlan: data.editType === 'price' ? data.ratePlans.map((rp: any) => rp.name).join(', ') : undefined,
+      oldValue: 'Multiple values',
+      newValue: `Bulk ${data.editType} update`,
+      changeAmount: affectedCombinations,
+      source: 'bulk_operation',
+      severity: 'medium',
+      category: data.editType === 'price' ? 'pricing' : 'inventory',
+      description: successMessage
+    });
     
     // If you have a toast system, use it here
     // toast({ title: "Bulk Edit Applied", description: successMessage, variant: "success" });
