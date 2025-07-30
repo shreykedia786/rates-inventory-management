@@ -900,11 +900,12 @@ export default function RevenuePage() {
     notes: ''
   });
   const [bulkRestrictions, setBulkRestrictions] = useState<BulkRestriction[]>([
+    // 1. MinLOS for Deluxe Room + BAR (original)
     {
       id: 'test-minlos-1',
       restrictionType: {
         id: 'minlos',
-        name: 'MinLOS (Minimum Length of Stay)',
+        name: 'Minimum Length of Stay',
         code: 'MINLOS',
         description: 'MinLOS enforces a minimum number of nights that guests must book to reserve a room.',
         category: 'length_of_stay',
@@ -926,6 +927,180 @@ export default function RevenuePage() {
       createdBy: 'Test User',
       createdAt: new Date(),
       notes: 'Sample restriction for tooltip testing'
+    },
+    
+    // 2. CTA for Standard Room + BAR  
+    {
+      id: 'test-cta-1',
+      restrictionType: {
+        id: 'cta',
+        name: 'Closed to Arrival',
+        code: 'CTA',
+        description: 'CTA blocks guests from starting their stay on specific dates. By applying this restriction, you can encourage bookings that span multiple nights instead of single-night stays.',
+        category: 'availability',
+        icon: 'ArrowRight',
+        color: 'red',
+        priority: 9
+      },
+      value: '',
+      dateRange: {
+        start: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date(Date.now() + 9 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      targets: {
+        roomTypes: ['Standard Room'],
+        ratePlans: ['BAR'],
+        channels: []
+      },
+      status: 'active',
+      createdBy: 'Revenue Manager',
+      createdAt: new Date(),
+      notes: 'Prevent single-night stays during peak weekend'
+    },
+    
+    // 3. MaxLOS for Suite + CORP
+    {
+      id: 'test-maxlos-1',
+      restrictionType: {
+        id: 'maxlos',
+        name: 'Maximum Length of Stay',
+        code: 'MAXLOS',
+        description: 'MaxLOS limits the number of nights a guest can book, which helps manage inventory availability for higher-paying or shorter-stay guests.',
+        category: 'length_of_stay',
+        icon: 'ArrowLeft',
+        color: 'orange',
+        priority: 6
+      },
+      value: 5,
+      dateRange: {
+        start: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      targets: {
+        roomTypes: ['Suite'],
+        ratePlans: ['CORP'],
+        channels: []
+      },
+      status: 'active',
+      createdBy: 'Distribution Manager',
+      createdAt: new Date(),
+      notes: 'Limit corporate bookings to maximize suite availability'
+    },
+    
+    // 4. CTD for Deluxe Room + Promo
+    {
+      id: 'test-ctd-1',
+      restrictionType: {
+        id: 'ctd',
+        name: 'Closed to Departure',
+        code: 'CTD',
+        description: 'CTD prevents guests from checking out on specific dates and it is used for high-demand season.',
+        category: 'availability',
+        icon: 'ArrowLeft',
+        color: 'red',
+        priority: 8
+      },
+      value: '',
+      dateRange: {
+        start: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      targets: {
+        roomTypes: ['Deluxe Room'],
+        ratePlans: ['Promo'],
+        channels: []
+      },
+      status: 'active',
+      createdBy: 'Revenue Manager',
+      createdAt: new Date(),
+      notes: 'Extend stays during festival period'
+    },
+    
+    // 5. Closeout for Standard Room (maintenance)
+    {
+      id: 'test-closeout-1',
+      restrictionType: {
+        id: 'closeout',
+        name: 'Closeout',
+        code: 'CLOSEOUT',
+        description: 'Closeout completely blocks room availability for specific dates making it ideal for planned maintenance, renovations, or private events.',
+        category: 'availability',
+        icon: 'X',
+        color: 'red',
+        priority: 10
+      },
+      value: '',
+      dateRange: {
+        start: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      targets: {
+        roomTypes: ['Standard Room'],
+        ratePlans: ['BAR', 'CORP', 'Promo'],
+        channels: []
+      },
+      status: 'active',
+      createdBy: 'Operations Manager',
+      createdAt: new Date(),
+      notes: 'Scheduled maintenance - HVAC system upgrade'
+    },
+    
+    // 6. Min Advance Purchase for Suite + BAR
+    {
+      id: 'test-min-adv-1',
+      restrictionType: {
+        id: 'min_advance_purchase',
+        name: 'Minimum Advance Purchase Days',
+        code: 'MIN_ADV',
+        description: 'This restriction requires guests to book a certain number of days in advance. It helps drive early bookings and allows better forecasting.',
+        category: 'booking',
+        icon: 'Calendar',
+        color: 'blue',
+        priority: 3
+      },
+      value: 7,
+      dateRange: {
+        start: new Date(Date.now() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      targets: {
+        roomTypes: ['Suite'],
+        ratePlans: ['BAR'],
+        channels: []
+      },
+      status: 'active',
+      createdBy: 'Revenue Manager',
+      createdAt: new Date(),
+      notes: 'Drive early bookings for premium suites'
+    },
+    
+    // 7. MinLOS Through for Standard Room + CORP
+    {
+      id: 'test-minlos-through-1',
+      restrictionType: {
+        id: 'minlos_through',
+        name: 'Minimum Length of Stay Through',
+        code: 'MINLOS_THROUGH',
+        description: 'This restriction ensures that a booking crossing a specific date must meet the minimum number of nights set.',
+        category: 'length_of_stay',
+        icon: 'Link',
+        color: 'purple',
+        priority: 5
+      },
+      value: 4,
+      dateRange: {
+        start: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        end: new Date(Date.now() + 12 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      },
+      targets: {
+        roomTypes: ['Standard Room'],
+        ratePlans: ['CORP'],
+        channels: []
+      },
+      status: 'active',
+      createdBy: 'Distribution Manager',
+      createdAt: new Date(),
+      notes: 'Ensure corporate stays span conference dates'
     }
   ]);
 
@@ -978,7 +1153,7 @@ export default function RevenuePage() {
     },
     {
       id: 'cta',
-      name: 'CTA (Closed to Arrival)',
+      name: 'Closed to Arrival',
       code: 'CTA',
       description: 'CTA blocks guests from starting their stay on specific dates. By applying this restriction, you can encourage bookings that span multiple nights instead of single-night stays.',
       category: 'availability',
@@ -988,7 +1163,7 @@ export default function RevenuePage() {
     },
     {
       id: 'ctd',
-      name: 'CTD (Closed to Departure)',
+      name: 'Closed to Departure',
       code: 'CTD',
       description: 'CTD prevents guests from checking out on specific dates and it is used for high-demand season. For instance, if 5th September is a public holiday and a peak occupancy day, applying CTD ensures that guests\' stays extend beyond the holiday, helping to maintain a higher occupancy rate.',
       category: 'availability',
@@ -998,7 +1173,7 @@ export default function RevenuePage() {
     },
     {
       id: 'minlos',
-      name: 'MinLOS (Minimum Length of Stay)',
+      name: 'Minimum Length of Stay',
       code: 'MINLOS',
       description: 'By applying MinLOS restriction, your guests book a minimum number of consecutive nights. For instance, during a popular summer weekend, setting MinLOS to 3 ensures that guests book at least Friday to Sunday. This helps to increase your overall revenue.',
       category: 'length_of_stay',
@@ -1008,7 +1183,7 @@ export default function RevenuePage() {
     },
     {
       id: 'maxlos',
-      name: 'MaxLOS (Maximum Length of Stay)',
+      name: 'Maximum Length of Stay',
       code: 'MAXLOS',
       description: 'MaxLOS limits the number of nights a guest can book, which helps manage inventory availability for higher-paying or shorter-stay guests. For example, during Christmas week, setting a MaxLOS to 5 prevents guests from booking an entire week at a discounted rate.',
       category: 'length_of_stay',
@@ -1018,7 +1193,7 @@ export default function RevenuePage() {
     },
     {
       id: 'minlos_through',
-      name: 'Min LOS Through (Minimum Length of Stay Through)',
+      name: 'Minimum Length of Stay Through',
       code: 'MINLOS_THROUGH',
       description: 'This restriction ensures that a booking crossing a specific date must meet the minimum number of nights set. It\'s useful during peak days when you want to avoid short stays that block high-demand dates.',
       category: 'length_of_stay',
@@ -1028,7 +1203,7 @@ export default function RevenuePage() {
     },
     {
       id: 'maxlos_through',
-      name: 'MaxLOS Through (Maximum Length of Stay)',
+      name: 'Maximum Length of Stay Through',
       code: 'MAXLOS_THROUGH',
       description: 'MaxLOS Through limits the total length of stay for reservations that include a specific date. For example, if you want to avoid long-stay guests overlapping a festival, this restriction helps free up inventory for high-paying bookings.',
       category: 'length_of_stay',
@@ -1891,17 +2066,8 @@ export default function RevenuePage() {
                         <div className="w-2 h-2 bg-orange-400 rounded-full mt-1.5 flex-shrink-0"></div>
                         <div className="flex-1">
                           <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm text-white font-medium">{restriction.name}</span>
-                            <span className="text-xs px-2 py-0.5 bg-orange-500/20 text-orange-300 rounded-full font-mono">
-                              {restriction.code}
-                            </span>
+                            <span className="text-sm text-white font-medium">{formatRestrictionStatement(restriction)}</span>
                           </div>
-                          <div className="text-xs text-gray-400 mb-1">{restriction.description}</div>
-                          {restriction.value && (
-                            <div className="text-xs text-orange-300 font-medium">
-                              Value: {restriction.value}
-                            </div>
-                          )}
                           {restriction.notes && (
                             <div className="text-xs text-gray-400 mt-1 italic">
                               Note: {restriction.notes}
@@ -1915,8 +2081,8 @@ export default function RevenuePage() {
       {/* Global Bulk Edit Modal - World-Class UI */}
 
               </div>
-  );
-}
+            );
+          }
           
           if (generalData.type === 'monthly_calendar') {
             return (
@@ -2041,12 +2207,12 @@ export default function RevenuePage() {
         default:
           return null;
       }
-    };
+        };
 
-    return (
-      <div 
+        return (
+          <div
         className="fixed z-[1000] pointer-events-auto"
-        style={{ 
+            style={{
           left: `${position.x}px`, 
           top: `${position.y}px`
         }}
@@ -2066,7 +2232,7 @@ export default function RevenuePage() {
               
               {/* Content */}
               <div className="relative">
-                {renderTooltipContent()}
+              {renderTooltipContent()}
               </div>
             </div>
             
@@ -2087,10 +2253,10 @@ export default function RevenuePage() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-    );
-  };
+            </div>
+          </div>
+        );
+      };
 
   // Sample room types and products
   // Convert from useMemo to useState to allow real-time updates
@@ -2972,7 +3138,7 @@ export default function RevenuePage() {
           y: rect.top + (rect.height / 2) // Center vertically on trigger
         }
       });
-    }, 150); // 150ms delay before showing
+    }, 50); // Reduced from 150ms to 50ms for better responsiveness
     
     setTooltipTimeout(showTimeout);
   };
@@ -3207,25 +3373,44 @@ export default function RevenuePage() {
 
   const pendingInsightsCount = sampleInsights.filter(i => i.status === 'pending').length;
 
-  // Helper function to get restriction descriptions
-  const getRestrictionDescription = (restriction: string): string => {
-    const descriptions: { [key: string]: string } = {
-      'Non-refundable': 'Booking cannot be cancelled or refunded once confirmed',
-      'Minimum 2 nights': 'Guest must book at least 2 consecutive nights',
-      'Minimum 3 nights': 'Guest must book at least 3 consecutive nights',
-      'No group bookings': 'Not available for group reservations (8+ rooms)',
-      'Advance purchase required': 'Must be booked at least 7 days in advance',
-      'No modifications': 'Booking dates and details cannot be changed',
-      'Weekend only': 'Only available for weekend stays (Fri-Sun)',
-      'Corporate rate': 'Available only for corporate clients',
-      'Member rate': 'Exclusive rate for loyalty program members',
-      'Package rate': 'Includes additional services (meals, spa, etc.)',
-      'Closed to arrival': 'Check-in not permitted on this date',
-      'Closed to departure': 'Check-out not permitted on this date',
-      'Minimum age 21': 'Primary guest must be at least 21 years old'
+  // Helper function to get full form of restriction names (remove abbreviations)
+  const getFullRestrictionName = (name: string): string => {
+    const nameMap: { [key: string]: string } = {
+      'Minimum Length of Stay': 'Minimum Length of Stay',
+      'Minimum Length of Stay Through': 'Minimum Length of Stay Through',
+      'Maximum Length of Stay': 'Maximum Length of Stay',
+      'Maximum Length of Stay Through': 'Maximum Length of Stay Through',
+      'Closed to Arrival': 'Closed to Arrival',
+      'Closed to Departure': 'Closed to Departure',
+      'Minimum Advance Purchase': 'Minimum Advance Purchase',
+      'Maximum Advance Purchase': 'Maximum Advance Purchase',
+      'Closeout': 'Closeout'
     };
     
-    return descriptions[restriction] || 'Special booking conditions apply';
+    return nameMap[name] || name;
+  };
+
+  // Helper function to format restriction as statement with value
+  const formatRestrictionStatement = (restriction: any): string => {
+    const fullName = getFullRestrictionName(restriction.name);
+    
+    // For restrictions without values (like CTA, CTD, Closeout)
+    if (!restriction.value || restriction.value === '') {
+      return fullName;
+    }
+    
+    // For restrictions with numeric values, add appropriate units
+    let valueText = restriction.value;
+    let unit = '';
+    
+    // Determine unit based on restriction type
+    if (fullName.includes('Length of Stay') || fullName.includes('LOS')) {
+      unit = restriction.value === 1 ? ' night' : ' nights';
+    } else if (fullName.includes('Advance Purchase')) {
+      unit = restriction.value === 1 ? ' day' : ' days';
+    }
+    
+    return `${fullName}: ${valueText}${unit}`;
   };
 
   // Filter and Export Handlers
@@ -3419,8 +3604,6 @@ export default function RevenuePage() {
       type: 'restrictions' as const,
       restrictions: restrictions.map(r => ({
         name: r.restrictionType.name,
-        code: r.restrictionType.code,
-        description: r.restrictionType.description,
         value: r.value,
         notes: r.notes
       })),
@@ -3870,9 +4053,6 @@ export default function RevenuePage() {
                                   {type.name}
                                 </div>
                                 <div className="text-xs text-gray-500 dark:text-gray-400 mb-3 space-x-2">
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 font-medium">
-                                    {type.code}
-                                  </span>
                                   <span className="inline-flex items-center px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium">
                                     {type.category.replace('_', ' ')}
                                   </span>
@@ -3915,7 +4095,7 @@ export default function RevenuePage() {
                               {/* Tooltip content */}
                               <div className="px-4 py-3">
                                 <div className="text-gray-300 dark:text-gray-400 leading-relaxed">
-                                  {type.description}
+                                  {/* Description removed per user request */}
                                 </div>
                               </div>
                             </div>
@@ -4239,9 +4419,6 @@ export default function RevenuePage() {
                       <div>
                         <div className="font-semibold text-gray-900 dark:text-white">
                           {selectedRestrictionType.name}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {selectedRestrictionType.code}
                         </div>
                       </div>
                     </div>
@@ -5634,7 +5811,7 @@ export default function RevenuePage() {
                                                   y: rect.top + (rect.height / 2)
                                                 }
                                               });
-                                            }, 150);
+                                            }, 50); // Reduced from 150ms to 50ms for better responsiveness
                                             
                                             setTooltipTimeout(showTimeout);
                                           }

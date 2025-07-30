@@ -686,7 +686,7 @@ export const MonthlyCalendarView: React.FC<MonthlyCalendarViewProps> = ({
             {/* Restrictions Icon */}
             {hasRestrictions && (
               <div 
-                className="w-7 h-7 flex items-center justify-center bg-red-100 dark:bg-red-900/40 rounded-full shadow-md cursor-help transition-all duration-200 hover:scale-110 hover:shadow-lg border border-red-200 dark:border-red-700"
+                className="w-7 h-7 flex items-center justify-center bg-orange-100 dark:bg-orange-900/40 rounded-full shadow-md cursor-help transition-all duration-200 hover:scale-110 hover:shadow-lg border border-orange-200 dark:border-orange-700"
                 onMouseEnter={(e) => {
                   // First try to get restriction data from the system like daily view
                   if (selectedRoomType && selectedRatePlan) {
@@ -715,11 +715,7 @@ export const MonthlyCalendarView: React.FC<MonthlyCalendarViewProps> = ({
                 aria-label={`${restrictions.length} restrictions applied`}
                 tabIndex={0}
               >
-                {isCloseout ? (
-                  <X className="w-4 h-4 text-red-600 dark:text-red-400" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-red-600 dark:text-red-400" />
-                )}
+                <Lock className="w-4 h-4 text-orange-600 dark:text-orange-400" />
               </div>
             )}
 
