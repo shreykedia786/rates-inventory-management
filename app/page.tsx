@@ -48,6 +48,7 @@ import {
 } from '../types/rate-consistency';
 import { WorkingBulkRestrictions } from '@/components/WorkingBulkRestrictions';
 import GlobalBulkEditModal from '../components/GlobalBulkEditModal';
+import { DateRangeModal } from '@/components/ui/date-range-modal';
 
 // Enhanced Types for Modern Interface
 interface AIInsight {
@@ -726,6 +727,10 @@ export default function RevenuePage() {
   const [selectedInventory, setSelectedInventory] = useState<{room: string, inventory: number, dateIndex: number} | null>(null);
   const [isInventoryModalOpen, setIsInventoryModalOpen] = useState(false);
   const [dateOffset, setDateOffset] = useState(0);
+  
+  // Date Range Modal State
+  const [isDateRangeModalOpen, setIsDateRangeModalOpen] = useState(false);
+  const [dateRangeClickPosition, setDateRangeClickPosition] = useState<{ x: number; y: number } | undefined>(undefined);
   
   // Monthly View State
   const [selectedRoomTypeForMonthly, setSelectedRoomTypeForMonthly] = useState("");
@@ -2552,6 +2557,36 @@ export default function RevenuePage() {
 
   const navigateDates = (direction: 'prev' | 'next') => {
     setDateOffset(prev => prev + (direction === 'next' ? 7 : -7));
+  };
+
+  /**
+   * Handle date range selection from modal
+   * Calculates the dateOffset needed to start the grid from the selected date
+   */
+  const handleDateRangeSelect = (startDate: Date) => {
+    const today = new Date();
+    const diffTime = startDate.getTime() - today.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    setDateOffset(diffDays);
+  };
+
+  /**
+   * Get the current start date for the grid
+   */
+  const getCurrentStartDate = () => {
+    const today = new Date();
+    const startDate = new Date(today);
+    startDate.setDate(today.getDate() + dateOffset);
+    return startDate;
+  };
+
+  /**
+   * Handle date range button click with position capture
+   */
+  const handleDateRangeClick = (e: React.MouseEvent) => {
+    // Capture click position for modal positioning
+    setDateRangeClickPosition({ x: e.clientX, y: e.clientY });
+    setIsDateRangeModalOpen(true);
   };
 
   const toggleRoomExpansion = (roomId: string) => {
@@ -5126,7 +5161,9 @@ export default function RevenuePage() {
               
               {/* Date Navigation (only for Daily view) */}
               {currentView === 'daily' && (
-                <div className="flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1">
+                <div className={`flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1 transition-all ${
+                  isDateRangeModalOpen ? 'relative z-[65] shadow-lg ring-2 ring-blue-500/50' : ''
+                }`}>
                   <button 
                     onClick={() => navigateDates('prev')}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
@@ -5134,9 +5171,15 @@ export default function RevenuePage() {
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
-                  <div className="px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[120px] text-center">
+                  <button
+                    onClick={handleDateRangeClick}
+                    className={`px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[120px] text-center hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors cursor-pointer ${
+                      isDateRangeModalOpen ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' : ''
+                    }`}
+                    title="Click to select start date"
+                  >
                     {dates[0]?.date.toLocaleDateString('en', { month: 'short', day: 'numeric' })} - {dates[20]?.date.toLocaleDateString('en', { month: 'short', day: 'numeric' })}
-                  </div>
+                  </button>
                   <button 
                     onClick={() => navigateDates('next')}
                     className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md transition-colors"
@@ -5883,6 +5926,16 @@ export default function RevenuePage() {
           onDismissInsight={handleDismissInsight}
           onRefreshInsights={refreshNewsInsights}
           isLoading={isNewsLoading}
+        />
+
+        {/* Date Range Modal */}
+        <DateRangeModal
+          isOpen={isDateRangeModalOpen}
+          onClose={() => setIsDateRangeModalOpen(false)}
+          currentStartDate={getCurrentStartDate()}
+          onDateSelect={handleDateRangeSelect}
+          isDark={isDark}
+          clickPosition={dateRangeClickPosition}
         />
 
         {/* Promotion Assistant - AI-Powered Promotion Management */}
