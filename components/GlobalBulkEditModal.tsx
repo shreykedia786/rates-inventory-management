@@ -1,7 +1,10 @@
 /**
- * Global Bulk Edit Modal Component - Enhanced with Smart Date Selection
- * Features: Intuitive date selection (double-click for single, click for ranges), 2-month calendar view
- * Smart UX: No CTAs needed - users interact directly with calendar
+ * Global Bulk Edit Modal Component - Enhanced with Smart Date Selection & Quick Presets
+ * Features: 
+ * - Intuitive date selection (double-click for single, click for ranges), 2-month calendar view
+ * - Quick date presets: Next 30/90/365 days, Custom range option
+ * - Smart UX: No CTAs needed - users interact directly with calendar
+ * - Multi-range support with visual feedback and range management
  */
 'use client';
 
@@ -479,6 +482,48 @@ export default function GlobalBulkEditModal({ isOpen, onClose, onApply, isDark =
     }
   };
 
+  // Handle date presets (e.g., next 30 days, next 90 days, rest of current year)
+  const handleDatePreset = (type: 'days' | 'year', value?: number) => {
+    const today = new Date();
+    let endDate: Date;
+    
+    if (type === 'days' && value) {
+      endDate = addDays(today, value - 1); // -1 because we want to include today
+    } else if (type === 'year') {
+      // Calculate end of current year (December 31st)
+      endDate = new Date(today.getFullYear(), 11, 31); // Month 11 = December
+    } else {
+      return;
+    }
+    
+    // Create a new range from today to the specified end date
+    const newRange: DateRange = {
+      id: `preset-${type === 'year' ? 'rest-of-year' : `${value}-days`}-${Date.now()}`,
+      start: today,
+      end: endDate,
+      type: 'range'
+    };
+
+    // Generate all dates in the range
+    const rangeDates = eachDayOfInterval({ start: today, end: endDate });
+
+    // Clear existing selections and add the new preset range
+    setBulkEditData(prev => ({
+      ...prev,
+      dateSelection: {
+        ranges: [newRange], // Replace with only the preset range
+        selectedDates: rangeDates
+      }
+    }));
+
+    // Clear any pending range
+    setPendingRangeStart(null);
+    setHoveredDate(null);
+
+    // Navigate calendar to show the selection (start from today)
+    setCurrentDate(today);
+  };
+
   if (!isOpen) return null;
 
   const { isValid, issues } = getValidationStatus();
@@ -770,6 +815,76 @@ export default function GlobalBulkEditModal({ isOpen, onClose, onApply, isDark =
                     }`}>
                       {bulkEditData.dateSelection.selectedDates.length} dates
                     </span>
+                  </div>
+                </div>
+                
+                {/* Date Presets */}
+                <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap className="w-4 h-4 text-blue-500" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Quick Select</span>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {[
+                      { 
+                        label: 'Next 30 Days', 
+                        sublabel: format(addDays(new Date(), 29), 'MMM dd'),
+                        icon: Calendar,
+                        action: () => handleDatePreset('days', 30),
+                        description: 'Select next 30 days from today'
+                      },
+                      { 
+                        label: 'Next 90 Days', 
+                        sublabel: format(addDays(new Date(), 89), 'MMM dd'),
+                        icon: TrendingUp,
+                        action: () => handleDatePreset('days', 90),
+                        description: 'Select next 90 days from today'
+                      },
+                      { 
+                        label: 'Rest of Year', 
+                        sublabel: format(new Date(new Date().getFullYear(), 11, 31), 'MMM dd'),
+                        icon: BarChart3,
+                        action: () => handleDatePreset('year'),
+                        description: 'Select all dates from today until the end of the year'
+                      },
+                      { 
+                        label: 'Custom Range', 
+                        sublabel: 'Click dates below',
+                        icon: Settings,
+                        action: () => {
+                          // Clear existing selections to start fresh for custom range
+                          setBulkEditData(prev => ({
+                            ...prev,
+                            dateSelection: { ranges: [], selectedDates: [] }
+                          }));
+                          setPendingRangeStart(null);
+                        },
+                        description: 'Clear and select custom dates manually'
+                      }
+                    ].map((preset, index) => (
+                      <button
+                        key={index}
+                        onClick={preset.action}
+                        className={`p-3 rounded-lg border transition-all duration-200 transform hover:scale-105 group ${
+                          isDark 
+                            ? 'border-gray-700 hover:border-blue-500 bg-gray-800 hover:bg-gray-750' 
+                            : 'border-gray-300 hover:border-blue-500 bg-gray-50 hover:bg-blue-50'
+                        }`}
+                        title={preset.description}
+                      >
+                        <div className="flex flex-col items-center gap-1">
+                          <div className="flex items-center gap-2">
+                            <preset.icon className="w-4 h-4 text-blue-500 group-hover:text-blue-600" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-blue-600 dark:group-hover:text-blue-400">
+                              {preset.label}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {preset.sublabel}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
                   </div>
                 </div>
                 
