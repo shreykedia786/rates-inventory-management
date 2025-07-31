@@ -1106,7 +1106,70 @@ export default function RevenuePage() {
 
   // Event Logs State
   const [isEventLogsOpen, setIsEventLogsOpen] = useState(false);
-  const [eventLogs, setEventLogs] = useState<EventLog[]>([]);
+  const [eventLogs, setEventLogs] = useState<EventLog[]>([
+    // Add sample event logs for demo purposes
+    {
+      id: '1',
+      timestamp: new Date(Date.now() - 2 * 60 * 1000),
+      eventType: 'price_update',
+      userId: 'user_001',
+      userName: 'Revenue Manager',
+      roomType: 'Standard Room',
+      ratePlan: 'BAR',
+      dateAffected: '2024-01-15',
+      oldValue: 6500,
+      newValue: 7200,
+      changeAmount: 700,
+      changePercentage: 10.8,
+      reason: 'Market demand increase',
+      source: 'manual',
+      severity: 'medium',
+      category: 'pricing',
+      description: 'Updated rate for Standard Room - BAR on Jan 15, 2024',
+      ipAddress: '192.168.1.100'
+    },
+    {
+      id: '2',
+      timestamp: new Date(Date.now() - 5 * 60 * 1000),
+      eventType: 'inventory_update',
+      userId: 'user_001',
+      userName: 'Revenue Manager',
+      roomType: 'Deluxe Room',
+      dateAffected: '2024-01-16',
+      oldValue: 25,
+      newValue: 20,
+      source: 'manual',
+      severity: 'low',
+      category: 'inventory',
+      description: 'Reduced inventory for Deluxe Room on Jan 16, 2024',
+      ipAddress: '192.168.1.100'
+    },
+    {
+      id: '3',
+      timestamp: new Date(Date.now() - 10 * 60 * 1000),
+      eventType: 'ai_insight_applied',
+      userId: 'user_001',
+      userName: 'AI Assistant',
+      roomType: 'Suite',
+      ratePlan: 'CORP',
+      dateAffected: '2024-01-17',
+      oldValue: 12000,
+      newValue: 13500,
+      changeAmount: 1500,
+      changePercentage: 12.5,
+      reason: 'Tech Summit demand surge detected',
+      source: 'ai',
+      severity: 'high',
+      category: 'ai',
+      description: 'AI recommended rate increase for Tech Summit period',
+      metadata: {
+        aiInsightId: 'insight_001',
+        confidence: 94,
+        affectedCells: 3
+      },
+      ipAddress: '192.168.1.100'
+    }
+  ]);
   const [eventLogsFilter, setEventLogsFilter] = useState({
     category: 'all' as 'all' | EventLog['category'],
     severity: 'all' as 'all' | EventLog['severity'],
@@ -5429,7 +5492,11 @@ export default function RevenuePage() {
 
               {/* Event Logs Button */}
               <button 
-                onClick={() => setIsEventLogsOpen(true)}
+                onClick={() => {
+                  console.log('Event Logs CTA clicked - isEventLogsOpen before:', isEventLogsOpen);
+                  setIsEventLogsOpen(true);
+                  console.log('Event Logs CTA clicked - setIsEventLogsOpen(true) called');
+                }}
                 className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
               >
                 <Activity className="w-4 h-4" />
@@ -6091,7 +6158,33 @@ export default function RevenuePage() {
         />
 
         {/* Event Logs Panel */}
-        <EventLogsPanel />
+        {(() => {
+          try {
+            console.log('Event Logs Panel - isEventLogsOpen:', isEventLogsOpen, 'eventLogs length:', eventLogs.length);
+            return <EventLogsPanel />;
+          } catch (error) {
+            console.error('Error rendering EventLogsPanel:', error);
+            return (
+              <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-md w-full p-6">
+                  <div className="text-center">
+                    <AlertTriangle className="w-12 h-12 text-red-500 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Error Loading Event Logs</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">
+                      There was an error loading the event logs panel. Please try refreshing the page.
+                    </p>
+                    <button 
+                      onClick={() => setIsEventLogsOpen(false)}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          }
+        })()}
 
         {/* Global News Insights Panel */}
         <GlobalNewsInsights 
