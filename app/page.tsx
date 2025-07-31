@@ -38,6 +38,7 @@ import SummarizedAITooltip from "../components/SummarizedAITooltip";
 import EnhancedAIRecommendationTooltip from "../components/EnhancedAIRecommendationTooltip";
 import EnhancedAutoAgentTooltip from "../components/EnhancedAutoAgentTooltip";
 import { Toaster, useToast } from "../components/ui/toast";
+import ColorLegend from '../components/ColorLegend';
 // Import our standardized types for data consistency
 import { 
   StandardizedRateData, 
@@ -738,7 +739,13 @@ export default function RevenuePage() {
   // Toast system
   const { success: toastSuccess, error: toastError } = useToast();
   const [selectedRatePlanForMonthly, setSelectedRatePlanForMonthly] = useState("");
-  const [monthlyViewDate, setMonthlyViewDate] = useState(new Date());  
+  const [monthlyViewDate, setMonthlyViewDate] = useState(() => {
+    // Use a stable date to prevent hydration mismatch
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return now;
+  });
+  const [isColorLegendOpen, setIsColorLegendOpen] = useState(false);
   const [changes, setChanges] = useState<Array<{
     id: string;
     type: 'price' | 'inventory';
@@ -1362,7 +1369,7 @@ export default function RevenuePage() {
         nextBestAction: 'Execute rate increase of 18% for weekend dates',
         alternativeActions: [
           { action: 'Gradual increase over 3 hours', probability: 0.75, expectedOutcome: 'Reduced risk, 80% of potential revenue' },
-          { action: 'Premium positioning strategy', probability: 0.65, expectedOutcome: 'Higher rates, selective demand' }
+          { action: 'Premium positioning strategy', probability: 0.72, expectedOutcome: 'Higher margins, selective demand' }
         ]
       }
     },
@@ -1691,7 +1698,6 @@ export default function RevenuePage() {
   const dates = generateDates();
   // EventTooltip component REMOVED - Using unified RichTooltip system for consistency
   // All event tooltips now use showRichTooltip('event', eventData, e) for premium styling
-  // This ensures consistent aesthetics across all tooltip types in the system
 
   // Enhanced Rich Tooltip Component - Microsoft Word Style
   const RichTooltip = ({ tooltip }: { tooltip: typeof richTooltip }) => {
@@ -2655,51 +2661,6 @@ export default function RevenuePage() {
       ]
     },
     {
-      id: '7',
-      name: 'Suite',
-      category: 'Suite',
-      isExpanded: false,
-      inventoryData: Array.from({ length: 21 }, (_, i) => ({
-        inventory: 8 - (i % 4), // Deterministic pattern
-        isActive: true,
-        restrictions: i % 8 === 0 ? ['Premium guests only'] : i % 5 === 0 ? ['Minimum 2 nights'] : []
-      })),
-      products: [
-        {
-          id: 'p14',
-          name: 'Suite Rate',
-          type: 'SUITE',
-          description: 'Luxury suite experience',
-          data: Array.from({ length: 21 }, (_, i) => ({
-            rate: 22000 + (i * 300) + (dates[i]?.isWeekend ? 2500 : 0), // Deterministic pricing
-            restrictions: i % 7 === 0 ? ['Minimum 2 nights', 'No group bookings'] : i % 5 === 0 ? ['Advance purchase required'] : [],
-            isWeekend: dates[i]?.isWeekend || false,
-            aiInsights: i === 12 ? [sampleInsights[2]] : [],
-            riskLevel: 'medium' as const,
-            confidenceScore: 78,
-            isActive: true,
-            competitorIndicator: 'higher'
-          }))
-        },
-        {
-          id: 'p15',
-          name: 'Group Rate',
-          type: 'GRP',
-          description: 'Special rate for group bookings',
-          data: Array.from({ length: 21 }, (_, i) => ({
-            rate: 19500 + (i * 250) + (dates[i]?.isWeekend ? 2000 : 0),
-            restrictions: ['Minimum 5 rooms', 'Group contract required'],
-            isWeekend: dates[i]?.isWeekend || false,
-            aiInsights: [],
-            riskLevel: 'high' as const,
-            confidenceScore: 75,
-            isActive: true,
-            competitorIndicator: 'competitive'
-          }))
-        }
-      ]
-    },
-    {
       id: '8',
       name: 'Presidential Suite',
       category: 'Luxury',
@@ -2881,12 +2842,12 @@ export default function RevenuePage() {
   // Event Logging Functions
   const logEvent = (eventData: Omit<EventLog, 'id' | 'timestamp' | 'userId' | 'userName' | 'ipAddress'>) => {
     const newEvent: EventLog = {
-      ...eventData,
-      id: Date.now().toString(),
+      id: generateStableId(),
       timestamp: new Date(),
       userId: 'user_001',
       userName: 'Revenue Manager',
-      ipAddress: '192.168.1.100'
+      ipAddress: '192.168.1.100',
+      ...eventData
     };
     
     setEventLogs(prev => [newEvent, ...prev]);
@@ -2897,7 +2858,7 @@ export default function RevenuePage() {
     // Create change record for publishing
     if (selectedProduct && newPrice !== selectedProduct.price) {
       const change = {
-        id: Date.now().toString(),
+        id: generateStableId(),
         type: 'price' as const,
         room: selectedProduct.room,
         product: selectedProduct.product,
@@ -2974,7 +2935,7 @@ export default function RevenuePage() {
     // Create change record for publishing
     if (selectedInventory && newInventory !== selectedInventory.inventory) {
       const change = {
-        id: Date.now().toString(),
+        id: generateStableId(),
         type: 'inventory' as const,
         room: selectedInventory.room,
         date: dates[selectedInventory.dateIndex]?.dateStr || '',
@@ -3063,7 +3024,7 @@ export default function RevenuePage() {
 
     // Create change record
     const change = {
-      id: Date.now().toString(),
+      id: generateStableId(),
       type: "price" as const,
       room: "Deluxe Room",
       product: "BAR",
@@ -3328,7 +3289,7 @@ export default function RevenuePage() {
     if (newValue !== inlineEdit.originalValue) {
       // Create change record
       const change = {
-        id: Date.now().toString(),
+        id: generateStableId(),
         type: inlineEdit.type,
         room: sampleRoomTypes.find(r => r.id === inlineEdit.roomId)?.name || '',
         product: inlineEdit.productId ? sampleRoomTypes.find(r => r.id === inlineEdit.roomId)?.products.find(p => p.id === inlineEdit.productId)?.name : undefined,
@@ -3682,9 +3643,9 @@ export default function RevenuePage() {
 
     return (
       <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000] flex items-center justify-center p-4">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full overflow-hidden">
-          {/* Header */}
-          <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+          {/* Header - Fixed */}
+          <div className="bg-gradient-to-r from-green-600 to-blue-600 text-white p-6 flex-shrink-0">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-2xl font-bold">Export Data</h2>
@@ -3699,181 +3660,183 @@ export default function RevenuePage() {
             </div>
           </div>
 
-          {/* Export Content */}
-          <div className="p-6 space-y-6">
-            
-            {/* Export Format */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-900 dark:text-white">
-                Export Format
-              </label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: 'excel', label: 'Excel', icon: FileText, description: 'XLSX format with multiple sheets' },
-                  { value: 'csv', label: 'CSV', icon: Download, description: 'Comma-separated values' },
-                  { value: 'pdf', label: 'PDF', icon: FileText, description: 'Formatted PDF report' }
-                ].map((format) => (
-                  <label key={format.value} className={`relative p-4 rounded-lg border-2 cursor-pointer transition-all ${
-                    exportOptions.format === format.value 
-                      ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
-                      : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="format"
-                      value={format.value}
-                      checked={exportOptions.format === format.value}
-                      onChange={(e) => setExportOptions(prev => ({ ...prev, format: e.target.value as any }))}
-                      className="sr-only"
-                    />
-                    <div className="text-center">
-                      <format.icon className={`w-8 h-8 mx-auto mb-2 ${
-                        exportOptions.format === format.value ? 'text-blue-600' : 'text-gray-400'
-                      }`} />
-                      <div className={`font-medium ${
-                        exportOptions.format === format.value ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-white'
-                      }`}>
-                        {format.label}
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        {format.description}
-                      </div>
-                    </div>
-                    {exportOptions.format === format.value && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle className="w-5 h-5 text-blue-600" />
-                      </div>
-                    )}
-                  </label>
-                ))}
-              </div>
-            </div>
-
-            {/* Date Range */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-900 dark:text-white">
-                Date Range
-              </label>
-              <div className="space-y-3">
-                {[
-                  { value: 'visible', label: 'Current View', description: 'Export currently visible dates' },
-                  { value: 'all', label: 'All Data', description: 'Export all available data' },
-                  { value: 'custom', label: 'Custom Range', description: 'Select specific date range' }
-                ].map((range) => (
-                  <label key={range.value} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                    <input
-                      type="radio"
-                      name="dateRange"
-                      value={range.value}
-                      checked={exportOptions.dateRange === range.value}
-                      onChange={(e) => setExportOptions(prev => ({ ...prev, dateRange: e.target.value as any }))}
-                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900 dark:text-white">{range.label}</div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">{range.description}</div>
-                    </div>
-                  </label>
-                ))}
-              </div>
+          {/* Export Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            <div className="p-6 space-y-6">
               
-              {exportOptions.dateRange === 'custom' && (
-                <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        Start Date
-                      </label>
+              {/* Export Format */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+                  Export Format
+                </label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { value: 'excel', label: 'Excel', icon: FileText, description: 'XLSX format with multiple sheets' },
+                    { value: 'csv', label: 'CSV', icon: Download, description: 'Comma-separated values' },
+                    { value: 'pdf', label: 'PDF', icon: FileText, description: 'Formatted PDF report' }
+                  ].map((format) => (
+                    <label key={format.value} className={`relative p-4 rounded-lg border-2 cursor-pointer transition-all ${
+                      exportOptions.format === format.value 
+                        ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                        : 'border-gray-200 dark:border-gray-600 hover:border-gray-300 dark:hover:border-gray-500'
+                    }`}>
                       <input
-                        type="date"
-                        value={exportOptions.customDateRange.start}
-                        onChange={(e) => setExportOptions(prev => ({
-                          ...prev,
-                          customDateRange: { ...prev.customDateRange, start: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        type="radio"
+                        name="format"
+                        value={format.value}
+                        checked={exportOptions.format === format.value}
+                        onChange={(e) => setExportOptions(prev => ({ ...prev, format: e.target.value as any }))}
+                        className="sr-only"
                       />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                        End Date
-                      </label>
+                      <div className="text-center">
+                        <format.icon className={`w-8 h-8 mx-auto mb-2 ${
+                          exportOptions.format === format.value ? 'text-blue-600' : 'text-gray-400'
+                        }`} />
+                        <div className={`font-medium ${
+                          exportOptions.format === format.value ? 'text-blue-900 dark:text-blue-100' : 'text-gray-900 dark:text-white'
+                        }`}>
+                          {format.label}
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                          {format.description}
+                        </div>
+                      </div>
+                      {exportOptions.format === format.value && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle className="w-5 h-5 text-blue-600" />
+                        </div>
+                      )}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Date Range */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+                  Date Range
+                </label>
+                <div className="space-y-3">
+                  {[
+                    { value: 'visible', label: 'Current View', description: 'Export currently visible dates' },
+                    { value: 'all', label: 'All Data', description: 'Export all available data' },
+                    { value: 'custom', label: 'Custom Range', description: 'Select specific date range' }
+                  ].map((range) => (
+                    <label key={range.value} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
                       <input
-                        type="date"
-                        value={exportOptions.customDateRange.end}
-                        onChange={(e) => setExportOptions(prev => ({
-                          ...prev,
-                          customDateRange: { ...prev.customDateRange, end: e.target.value }
-                        }))}
-                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        type="radio"
+                        name="dateRange"
+                        value={range.value}
+                        checked={exportOptions.dateRange === range.value}
+                        onChange={(e) => setExportOptions(prev => ({ ...prev, dateRange: e.target.value as any }))}
+                        className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                       />
+                      <div className="flex-1">
+                        <div className="font-medium text-gray-900 dark:text-white">{range.label}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400">{range.description}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                
+                {exportOptions.dateRange === 'custom' && (
+                  <div className="mt-3 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Start Date
+                        </label>
+                        <input
+                          type="date"
+                          value={exportOptions.customDateRange.start}
+                          onChange={(e) => setExportOptions(prev => ({
+                            ...prev,
+                            customDateRange: { ...prev.customDateRange, start: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          End Date
+                        </label>
+                        <input
+                          type="date"
+                          value={exportOptions.customDateRange.end}
+                          onChange={(e) => setExportOptions(prev => ({
+                            ...prev,
+                            customDateRange: { ...prev.customDateRange, end: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                        />
+                      </div>
                     </div>
                   </div>
+                )}
+              </div>
+
+              {/* Include Options */}
+              <div className="space-y-3">
+                <label className="block text-sm font-semibold text-gray-900 dark:text-white">
+                  Include in Export
+                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportOptions.includeRestrictions}
+                      onChange={(e) => setExportOptions(prev => ({ ...prev, includeRestrictions: e.target.checked }))}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <Lock className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Restrictions & Policies</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportOptions.includeAIInsights}
+                      onChange={(e) => setExportOptions(prev => ({ ...prev, includeAIInsights: e.target.checked }))}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <Bot className="w-4 h-4 text-purple-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">AI Insights & Recommendations</span>
+                  </label>
+                  
+                  <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={exportOptions.includeEvents}
+                      onChange={(e) => setExportOptions(prev => ({ ...prev, includeEvents: e.target.checked }))}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                    />
+                    <CalendarIcon className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">Events & Market Impact</span>
+                  </label>
                 </div>
-              )}
-            </div>
-
-            {/* Include Options */}
-            <div className="space-y-3">
-              <label className="block text-sm font-semibold text-gray-900 dark:text-white">
-                Include in Export
-              </label>
-              <div className="space-y-2">
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={exportOptions.includeRestrictions}
-                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeRestrictions: e.target.checked }))}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <Lock className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Restrictions & Policies</span>
-                </label>
-                
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={exportOptions.includeAIInsights}
-                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeAIInsights: e.target.checked }))}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <Bot className="w-4 h-4 text-purple-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">AI Insights & Recommendations</span>
-                </label>
-                
-                <label className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={exportOptions.includeEvents}
-                    onChange={(e) => setExportOptions(prev => ({ ...prev, includeEvents: e.target.checked }))}
-                    className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-                  />
-                  <CalendarIcon className="w-4 h-4 text-orange-500" />
-                  <span className="text-sm text-gray-700 dark:text-gray-300">Events & Market Impact</span>
-                </label>
               </div>
-            </div>
 
-            {/* Export Preview */}
-            <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Export Preview</h4>
-              <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
-                <div>• Format: {exportOptions.format.toUpperCase()}</div>
-                <div>• Date Range: {exportOptions.dateRange === 'visible' ? 'Current view' : 
-                                   exportOptions.dateRange === 'all' ? 'All data' : 'Custom range'}</div>
-                <div>• Room Types: {filteredRoomTypes.length} included</div>
-                <div>• Additional Data: {[
-                  exportOptions.includeRestrictions && 'Restrictions',
-                  exportOptions.includeAIInsights && 'AI Insights',
-                  exportOptions.includeEvents && 'Events'
-                ].filter(Boolean).join(', ') || 'None'}</div>
+              {/* Export Preview */}
+              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">Export Preview</h4>
+                <div className="text-sm text-blue-700 dark:text-blue-300 space-y-1">
+                  <div>• Format: {exportOptions.format.toUpperCase()}</div>
+                  <div>• Date Range: {exportOptions.dateRange === 'visible' ? 'Current view' : 
+                                     exportOptions.dateRange === 'all' ? 'All data' : 'Custom range'}</div>
+                  <div>• Room Types: {filteredRoomTypes.length} included</div>
+                  <div>• Additional Data: {[
+                    exportOptions.includeRestrictions && 'Restrictions',
+                    exportOptions.includeAIInsights && 'AI Insights',
+                    exportOptions.includeEvents && 'Events'
+                  ].filter(Boolean).join(', ') || 'None'}</div>
+                </div>
               </div>
-            </div>
 
+            </div>
           </div>
 
-          {/* Footer */}
-          <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-600">
+          {/* Footer - Fixed */}
+          <div className="bg-gray-50 dark:bg-gray-700 px-6 py-4 flex items-center justify-between border-t border-gray-200 dark:border-gray-600 flex-shrink-0">
             <div className="text-sm text-gray-600 dark:text-gray-400">
               Ready to export {filteredRoomTypes.length} room type{filteredRoomTypes.length !== 1 ? 's' : ''}
             </div>
@@ -3976,7 +3939,7 @@ export default function RevenuePage() {
 
       // Create the restriction
       const newRestriction: BulkRestriction = {
-        id: `restriction-${Date.now()}`,
+        id: generateStableId(),
         restrictionType: selectedRestrictionType!,
         value: restrictionForm.value || undefined,
         dateRange: restrictionForm.dateRange,
@@ -5125,21 +5088,25 @@ export default function RevenuePage() {
   const [hasSeenTutorial, setHasSeenTutorial] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
-  // Ensure component is mounted (client-side only)
+  // Stable ID counter to prevent Date.now() hydration issues
+  const idCounterRef = useRef(1000);
+  const generateStableId = useCallback(() => {
+    return `id-${idCounterRef.current++}`;
+  }, []);
+
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Auto-show tutorial for first-time users (client-side only)
   useEffect(() => {
     if (!isMounted) return; // Prevent SSR issues
-    
+
     const hasSeenTutorialBefore = localStorage.getItem('rates-tutorial-seen');
     if (!hasSeenTutorialBefore && !hasSeenTutorial) {
-      // Show tutorial after a short delay for better UX
+      // Small delay to ensure proper hydration
       const timer = setTimeout(() => {
         setIsTutorialOpen(true);
-      }, 1500);
+      }, 1000);
       return () => clearTimeout(timer);
     }
   }, [hasSeenTutorial, isMounted]);
@@ -5279,7 +5246,7 @@ export default function RevenuePage() {
     
     // Add bulk change record
     const bulkChange = {
-      id: Date.now().toString(),
+      id: generateStableId(),
       type: data.editType as 'price' | 'inventory',
       room: data.roomTypes.map((rt: any) => rt.name).join(', '),
       product: data.editType === 'price' ? data.ratePlans.map((rp: any) => rp.name).join(', ') : undefined,
@@ -5353,10 +5320,10 @@ export default function RevenuePage() {
         <div className="space-y-6">
           {/* View Tabs - Moved to top for cleaner layout */}
           <div className="flex items-center justify-between">
-            <div className="flex items-center bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1">
+            <div className="flex items-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1">
               <button 
                 onClick={() => setCurrentView('daily')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
                   currentView === 'daily' 
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -5366,7 +5333,7 @@ export default function RevenuePage() {
               </button>
               <button 
                 onClick={() => setCurrentView('monthly')}
-                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                className={`px-4 py-3 rounded-xl text-sm font-semibold transition-colors ${
                   currentView === 'monthly' 
                     ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300' 
                     : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
@@ -5379,12 +5346,12 @@ export default function RevenuePage() {
             {/* Changes Indicator & Publish Button */}
             {changes.length > 0 && (
               <div className="flex items-center gap-3">
-                <div className="bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-3 py-2 rounded-lg text-sm font-medium">
+                <div className="bg-orange-100 dark:bg-orange-900/20 text-orange-700 dark:text-orange-300 px-3 py-2 rounded-xl text-sm font-semibold">
                   {changes.length} unsaved change{changes.length !== 1 ? 's' : ''}
                 </div>
                 <button 
                   onClick={publishChanges}
-                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2"
+                  className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-xl font-semibold transition-colors flex items-center gap-2"
                 >
                   <Save className="w-4 h-4" />
                   Publish Changes
@@ -5401,7 +5368,7 @@ export default function RevenuePage() {
               
               {/* Date Navigation (only for Daily view) */}
               {currentView === 'daily' && (
-                <div className={`flex items-center gap-2 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-1 transition-all ${
+                <div className={`flex items-center gap-2 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-1 transition-all ${
                   isDateRangeModalOpen ? 'relative z-[65] shadow-lg ring-2 ring-blue-500/50' : ''
                 }`}>
                   <button 
@@ -5431,82 +5398,111 @@ export default function RevenuePage() {
               )}
             </div>
 
-            <div className="flex items-center gap-3">
-              {/* Inline Edit Help */}
-              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg">
-                <Info className="w-4 h-4" />
-                <span>Double-click to edit inline • Tab to navigate dates • Click for detailed modal</span>
+            {/* Enhanced Action Bar with Better Responsive Layout */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2 lg:gap-3">
+              {/* Left Side - Inline Edit Help (No Border, More Compact) */}
+              <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-800 px-3 py-2 rounded-lg flex-shrink-0">
+                <Info className="w-4 h-4 flex-shrink-0" />
+                <span className="hidden xl:inline font-medium">Double-click to edit inline • Tab to navigate dates • Click for detailed modal</span>
+                <span className="xl:hidden font-medium">Double-click to edit • Tab to navigate</span>
               </div>
 
-              {/* Enhanced Filter Button */}
-              <button 
-                onClick={() => setIsFiltersOpen(true)}
-                className={`relative flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
-                  getActiveFiltersCount() > 0 
-                    ? 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800' 
-                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700'
-                }`}
-              >
-                <Filter className="w-4 h-4" />
-                <span>Filters</span>
-                {getActiveFiltersCount() > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-blue-600 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-bold">
-                    {getActiveFiltersCount()}
-                  </span>
-                )}
-              </button>
+              {/* Right Side - Essential Action Buttons Only */}
+              <div className="flex flex-wrap items-center gap-1.5 lg:gap-2">
+                {/* Primary Actions Group */}
+                <div className="flex items-center gap-1.5">
+                  {/* Enhanced Filter Button */}
+                  <button 
+                    onClick={() => setIsFiltersOpen(!isFiltersOpen)}
+                    className={`relative flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      isFiltersOpen 
+                        ? 'bg-blue-500 text-white shadow-lg' 
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 dark:border-gray-700'
+                    }`}
+                  >
+                    <Filter className="w-4 h-4" />
+                    <span className="hidden sm:inline">Filter</span>
+                    {getActiveFiltersCount() > 0 && (
+                      <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                        {getActiveFiltersCount()}
+                      </span>
+                    )}
+                  </button>
 
-              {/* Enhanced Export Button */}
-              <button 
-                onClick={() => setIsExportOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <Download className="w-4 h-4" />
-                <span>Export</span>
-              </button>
+                  {/* Export Button */}
+                  <button 
+                    onClick={() => setIsExportOpen(!isExportOpen)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      isExportOpen 
+                        ? 'bg-green-500 text-white shadow-lg' 
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 dark:border-gray-700'
+                    }`}
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">Export</span>
+                  </button>
+                </div>
 
-              {/* Bulk Restrictions Button */}
-              <button 
-                onClick={() => setIsBulkRestrictionsOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-              >
-                <Lock className="w-4 h-4" />
-                <span>Bulk Restrictions</span>
-                {bulkRestrictions.filter(r => r.status === 'active').length > 0 && (
-                  <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 text-xs px-2 py-1 rounded-full">
-                    {bulkRestrictions.filter(r => r.status === 'active').length}
-                  </span>
-                )}
-              </button>
+                {/* Secondary Actions Group */}
+                <div className="flex items-center gap-1.5">
+                  {/* Bulk Restrictions Button */}
+                  <button 
+                    onClick={() => setIsBulkRestrictionsOpen(!isBulkRestrictionsOpen)}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 ${
+                      isBulkRestrictionsOpen 
+                        ? 'bg-orange-500 text-white shadow-lg' 
+                        : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border border-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 dark:text-gray-300 dark:border-gray-700'
+                    }`}
+                  >
+                    <Shield className="w-4 h-4" />
+                    <span className="hidden md:inline">Restrictions</span>
+                    <span className="md:hidden">Rules</span>
+                  </button>
 
+                  {/* Bulk Edit Button */}
+                  <button 
+                    onClick={handleBulkEditClick}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all duration-200 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 text-sm"
+                    title="Bulk Edit Rates & Inventory"
+                  >
+                    <SettingsIcon className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">Bulk Edit</span>
+                  </button>
+                </div>
 
-              {/* Global Bulk Edit Button */}
-              <button 
-                onClick={handleBulkEditClick}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
-                title="Bulk Edit Rates & Inventory"
-              >
-                <SettingsIcon className="w-4 h-4" />
-                <span>Bulk Edit</span>
-              </button>
+                {/* Tertiary Actions Group */}
+                <div className="flex items-center gap-1.5">
+                  {/* Event Logs Button */}
+                  <button 
+                    onClick={() => {
+                      console.log('Event Logs CTA clicked - isEventLogsOpen before:', isEventLogsOpen);
+                      setIsEventLogsOpen(true);
+                      console.log('Event Logs CTA clicked - setIsEventLogsOpen(true) called');
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all duration-200 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-md hover:shadow-lg text-sm"
+                  >
+                    <Activity className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">Event Logs</span>
+                    <span className="sm:hidden">Logs</span>
+                    {eventLogs.length > 0 && (
+                      <span className="bg-white/20 text-white text-xs px-1.5 py-0.5 rounded-full flex-shrink-0 font-semibold">
+                        {eventLogs.length}
+                      </span>
+                    )}
+                  </button>
 
-              {/* Event Logs Button */}
-              <button 
-                onClick={() => {
-                  console.log('Event Logs CTA clicked - isEventLogsOpen before:', isEventLogsOpen);
-                  setIsEventLogsOpen(true);
-                  console.log('Event Logs CTA clicked - setIsEventLogsOpen(true) called');
-                }}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105"
-              >
-                <Activity className="w-4 h-4" />
-                <span>Event Logs</span>
-                {eventLogs.length > 0 && (
-                  <span className="bg-white/20 text-white text-xs px-2 py-1 rounded-full">
-                    {eventLogs.length}
-                  </span>
-                )}
-              </button>
+                  {/* Color Legend Button - Adjacent to Event Logs */}
+                  <button
+                    onClick={() => setIsColorLegendOpen(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold transition-all duration-200 bg-gradient-to-r from-emerald-500 to-cyan-600 hover:from-emerald-600 hover:to-cyan-700 text-white shadow-md hover:shadow-lg text-sm"
+                    title="Color Legend & Help"
+                  >
+                    <Info className="w-4 h-4 flex-shrink-0" />
+                    <span className="hidden sm:inline">Legend</span>
+                    <span className="sm:hidden">Info</span>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
           {/* View Content - Conditional Rendering */}
@@ -6136,7 +6132,7 @@ export default function RevenuePage() {
           roomTypes={sampleRoomTypes} 
           onApply={(data) => {
             const newRestriction: BulkRestriction = {
-              id: `restriction-${Date.now()}`, 
+              id: generateStableId(), 
               restrictionType: data.restrictionType, 
               value: data.value || undefined, 
               dateRange: data.dateRange, 
@@ -6327,7 +6323,15 @@ ${insight.agentCapabilities?.canAutoExecute ? `
           onClose={() => setIsBulkEditModalOpen(false)}
           onApply={handleBulkEditApply}
           isDark={isDark}
-        />      </main>
+        />
+
+        {/* Color Legend Modal */}
+        <ColorLegend
+          isOpen={isColorLegendOpen}
+          onClose={() => setIsColorLegendOpen(false)}
+        />
+
+      </main>
     </div>
   );
 }
