@@ -2,6 +2,7 @@
  * Competitive Intelligence Dashboard Component
  * Premium, actionable analytics dashboard for revenue managers
  * Focus: Clear insights with specific action recommendations
+ * Enhanced with Demand Intelligence: Flights, Events, Market Signals
  */
 
 'use client';
@@ -13,9 +14,17 @@ import {
   ArrowUp, ArrowDown, Minus, Users, Building2, Globe, 
   Filter, Download, RefreshCw, Zap, Brain, 
   Award, Eye, Sparkles, ArrowLeft, ArrowRight, AlertCircle, ChevronRight,
-  Calendar, Clock, Percent, IndianRupee
+  Calendar, Clock, Percent, IndianRupee, Plane, MapPin, Music, 
+  Briefcase, Trophy, Star, CloudSun, Flame, ThermometerSun, Wind,
+  CalendarDays, TrendingUp as TrendUp
 } from 'lucide-react';
 import Link from 'next/link';
+import { 
+  getDemandIntelligence, 
+  type RealFlightData, 
+  type RealEventData, 
+  type DemandForecast 
+} from '@/services/demandIntelligenceService';
 
 // Room Types and Rate Plans
 const ROOM_TYPES = [
@@ -56,6 +65,185 @@ const getBaseRate = (roomTypeId: string, ratePlanId: string): number => {
 const seededRandom = (seed: number): number => {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
+};
+
+// ============================================================================
+// PRICE SPIKE DETECTION (Uses competitor rate history)
+// ============================================================================
+
+/**
+ * Competitor price spike detection
+ */
+interface PriceSpikeAlert {
+  competitorId: string;
+  competitorName: string;
+  date: string;
+  displayDate: string;
+  previousRate: number;
+  newRate: number;
+  changePercent: number;
+  reason?: string;
+  detectedAt: string;
+  actionRecommendation: string;
+}
+
+/**
+ * Detect competitor price spikes from rate history
+ */
+const generatePriceSpikeAlerts = (
+  rateHistory: any[],
+  competitors: any[],
+  seedBase: number
+): PriceSpikeAlert[] => {
+  const alerts: PriceSpikeAlert[] = [];
+  const reasons = [
+    'Detected high event demand',
+    'Weekend surge pricing',
+    'Last-minute rate increase',
+    'Seasonal adjustment',
+    'Low availability - high demand',
+    'Market-wide price correction'
+  ];
+
+  // Check each competitor for significant price changes
+  competitors.forEach((comp, compIndex) => {
+    for (let i = 1; i < Math.min(rateHistory.length, 14); i++) {
+      const prevRate = rateHistory[i - 1].competitorRates?.find((cr: any) => cr.competitorId === comp.id)?.rate || 0;
+      const currRate = rateHistory[i].competitorRates?.find((cr: any) => cr.competitorId === comp.id)?.rate || 0;
+      
+      if (prevRate > 0 && currRate > 0) {
+        const changePercent = Math.round(((currRate - prevRate) / prevRate) * 100);
+        
+        // Alert if price increased by more than 10%
+        if (changePercent >= 10) {
+          const reasonIndex = Math.floor(seededRandom(seedBase + i * 67 + compIndex * 13) * reasons.length);
+          alerts.push({
+            competitorId: comp.id,
+            competitorName: comp.name,
+            date: rateHistory[i].date,
+            displayDate: rateHistory[i].displayDate,
+            previousRate: prevRate,
+            newRate: currRate,
+            changePercent,
+            reason: reasons[reasonIndex],
+            detectedAt: 'Today',
+            actionRecommendation: changePercent >= 20 
+              ? `Consider raising your rate by ${Math.round(changePercent * 0.6)}% to capitalize on market conditions`
+              : `Monitor closely - ${comp.name} sees elevated demand`
+          });
+        }
+      }
+    }
+  });
+
+  // Sort by change percent descending, limit to top 10
+  return alerts.sort((a, b) => b.changePercent - a.changePercent).slice(0, 10);
+};
+
+/**
+ * Generate demand-based pricing recommendations from real data
+ */
+const generateDemandInsightsFromRealData = (
+  forecasts: DemandForecast[],
+  events: RealEventData[],
+  flights: RealFlightData[],
+  priceSpikes: PriceSpikeAlert[],
+  currentRate: number
+): Array<{
+  type: 'opportunity' | 'warning' | 'success' | 'action';
+  title: string;
+  description: string;
+  action: string;
+  impact: string;
+  priority: 'high' | 'medium' | 'low';
+  demandContext?: string;
+}> => {
+  const insights: Array<{
+    type: 'opportunity' | 'warning' | 'success' | 'action';
+    title: string;
+    description: string;
+    action: string;
+    impact: string;
+    priority: 'high' | 'medium' | 'low';
+    demandContext?: string;
+  }> = [];
+
+  // High demand dates
+  const highDemandDates = forecasts.filter(d => d.riskLevel === 'high-demand');
+  if (highDemandDates.length > 0) {
+    const topDate = highDemandDates[0];
+    const dateEvent = events.find(e => e.date <= topDate.date && (e.endDate || e.date) >= topDate.date);
+    const dateFlight = flights.find(f => f.date === topDate.date);
+    
+    insights.push({
+      type: 'opportunity',
+      title: `🔥 High Demand: ${topDate.displayDate} (${topDate.dayName})`,
+      description: `Demand score ${topDate.overallScore}/100. ${topDate.keyDrivers.slice(0, 2).join(', ')}. ${dateEvent ? `"${dateEvent.title}" - ${dateEvent.description}` : ''}`,
+      action: `Increase rate by ${topDate.suggestedPriceAdjustment}% to ${formatCurrency(currentRate * (1 + topDate.suggestedPriceAdjustment / 100))}`,
+      impact: `Potential additional revenue: ${formatCurrency(currentRate * (topDate.suggestedPriceAdjustment / 100) * 15)}/day`,
+      priority: 'high',
+      demandContext: `Flights: ${dateFlight?.totalArrivals || 'N/A'} arrivals | ${dateFlight?.estimatedPassengers?.toLocaleString() || 'N/A'} passengers`
+    });
+  }
+
+  // Upcoming major events (real Indian holidays/festivals)
+  const majorEvents = events.filter(e => e.expectedImpact === 'high').slice(0, 2);
+  majorEvents.forEach(event => {
+    insights.push({
+      type: 'opportunity',
+      title: `📅 ${event.title}`,
+      description: `${event.description}. Location: ${event.location}. This ${event.category} event historically drives ${event.priceRecommendation}% rate premium.`,
+      action: `Set premium rate at ${formatCurrency(currentRate * (1 + event.priceRecommendation / 100))} for ${formatDate(event.date)}${event.endDate ? ` - ${formatDate(event.endDate)}` : ''}`,
+      impact: `Market typically sees ${event.priceRecommendation}% rate increase during ${event.title}`,
+      priority: 'high',
+      demandContext: `Category: ${event.category} | Source: ${event.source} | ${event.isNational ? 'National Holiday' : 'Local Event'}`
+    });
+  });
+
+  // Competitor price spikes
+  if (priceSpikes.length > 0) {
+    const topSpike = priceSpikes[0];
+    insights.push({
+      type: 'action',
+      title: `⚡ Competitor Alert: ${topSpike.competitorName}`,
+      description: `${topSpike.competitorName} increased rates by ${topSpike.changePercent}% on ${topSpike.displayDate}. ${topSpike.reason}.`,
+      action: topSpike.actionRecommendation,
+      impact: `Current competitor rate: ${formatCurrency(topSpike.newRate)} - market signaling higher demand`,
+      priority: topSpike.changePercent >= 20 ? 'high' : 'medium',
+      demandContext: `Rate change: ${formatCurrency(topSpike.previousRate)} → ${formatCurrency(topSpike.newRate)}`
+    });
+  }
+
+  // Flight surge detection
+  const highFlightDays = flights.filter(f => f.trend === 'high').slice(0, 2);
+  if (highFlightDays.length > 0) {
+    const flightDay = highFlightDays[0];
+    insights.push({
+      type: 'success',
+      title: `✈️ High Flight Arrivals: ${flightDay.displayDate}`,
+      description: `${flightDay.totalArrivals} flights expected with ${flightDay.estimatedPassengers.toLocaleString()} passengers. Peak: ${flightDay.peakHour}. Top routes: ${flightDay.topOrigins.slice(0, 3).map(r => r.city).join(', ')}`,
+      action: `Consider dynamic pricing window during ${flightDay.peakHour}`,
+      impact: `${flightDay.domesticArrivals} domestic + ${flightDay.internationalArrivals} international arrivals`,
+      priority: 'medium',
+      demandContext: `Demand score: ${flightDay.demandScore}/100`
+    });
+  }
+
+  // Low demand warning
+  const lowDemandDates = forecasts.filter(d => d.riskLevel === 'low-demand');
+  if (lowDemandDates.length > 5) {
+    insights.push({
+      type: 'warning',
+      title: `📉 ${lowDemandDates.length} Low Demand Days Ahead`,
+      description: `${lowDemandDates.length} dates have demand scores below 40. This may be monsoon season or mid-week slow periods. Consider promotional strategies.`,
+      action: 'Create last-minute deals, packages, or OTA promotions to drive occupancy',
+      impact: `Consider ${Math.abs(lowDemandDates[0]?.suggestedPriceAdjustment || 10)}% rate reduction to protect occupancy`,
+      priority: 'medium',
+      demandContext: 'Proactive action recommended before booking window closes'
+    });
+  }
+
+  return insights;
 };
 
 // Generate realistic competitive data with configurable start date
@@ -190,23 +378,49 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
   // Revenue opportunity calculation
   const potentialIncrease = underpricedDays.reduce((sum, d) => sum + Math.abs(d.priceGap) * 0.6, 0);
   
-  // Channel performance
+  // Channel performance - Focus on Rate Parity (no fake revenue)
+  // Compare each channel's rate against your direct/base rate and market average
+  const directRate = Math.round(rateHistory.reduce((sum, d) => sum + d.userChannelRates[0].rate, 0) / rateHistory.length);
+  
   const channelPerformance = channels.map((channel, idx) => {
     const avgRate = Math.round(rateHistory.reduce((sum, d) => sum + d.userChannelRates[idx].rate, 0) / rateHistory.length);
-    const bookings = Math.round(30 + seededRandom(seedBase + idx * 100) * 120);
     const commission = channel === 'Direct Website' ? 0 : 15 + (idx % 5);
-    const revenue = Math.round(avgRate * bookings * (1 - commission / 100));
-    const parityGap = avgRate - avgCompetitorRate;
+    
+    // Calculate parity against your direct rate (not competitor rate)
+    // Positive gap = channel priced higher than direct = good (Win)
+    // Negative gap = channel undercutting direct = bad (Loss)
+    const parityGapVsDirect = avgRate - directRate;
+    const parityGapVsMarket = avgRate - avgCompetitorRate;
+    
+    // Net effective rate after commission
+    const netEffectiveRate = Math.round(avgRate * (1 - commission / 100));
+    
+    // Parity score: How well is this channel aligned with your strategy?
+    // 100 = perfect parity with direct, lower = undercutting
+    const parityScore = Math.max(0, Math.min(100, 100 - Math.abs(parityGapVsDirect) / 50));
+    
+    // Determine status based on gap vs direct rate
+    let parityStatus: 'win' | 'meet' | 'loss';
+    if (Math.abs(parityGapVsDirect) < 100) {
+      parityStatus = 'meet'; // Within ₹100 of direct = parity maintained
+    } else if (parityGapVsDirect > 0) {
+      parityStatus = 'win'; // Channel priced higher = direct is competitive
+    } else {
+      parityStatus = 'loss'; // Channel undercutting = parity violation
+    }
     
     return {
       name: channel,
       rate: avgRate,
-      bookings,
+      directRate,
       commission,
-      revenue,
-      marketShare: Math.round((bookings / 400) * 100),
-      parityStatus: Math.abs(parityGap) < 100 ? 'parity' : parityGap > 0 ? 'premium' : 'value',
-      parityGap
+      netEffectiveRate,
+      parityGapVsDirect,
+      parityGapVsMarket,
+      parityScore,
+      parityStatus,
+      // Is this channel competitive vs market?
+      vsMarket: avgRate > avgCompetitorRate ? 'above' : avgRate < avgCompetitorRate ? 'below' : 'at'
     };
   });
 
@@ -280,6 +494,35 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
     };
   }).sort((a, b) => a.todayRate - b.todayRate);
 
+  // ============================================================================
+  // DEMAND INTELLIGENCE DATA - Using Real Data Service
+  // ============================================================================
+  
+  // Get demand intelligence from the service (uses real events/holidays data)
+  const demandIntel = getDemandIntelligence(today, daysToShow);
+  
+  // Generate price spike alerts from competitor data
+  const priceSpikeAlerts = generatePriceSpikeAlerts(rateHistory, competitors, seedBase);
+  
+  // Generate demand-based insights using real data
+  const demandInsights = generateDemandInsightsFromRealData(
+    demandIntel.forecasts,
+    demandIntel.events,
+    demandIntel.flightData,
+    priceSpikeAlerts,
+    todayData.userRate
+  );
+  
+  // Merge regular insights with demand insights
+  const allInsights = [
+    ...demandInsights,
+    ...generateInsights(todayData, rateHistory, underpricedDays, competitorPositioning, avgUserOccupancy)
+  ].sort((a, b) => {
+    // Sort by priority (high first)
+    const priorityOrder = { high: 0, medium: 1, low: 2 };
+    return priorityOrder[a.priority] - priorityOrder[b.priority];
+  });
+
   return {
     rateHistory,
     dailyPriceStats: rateHistory.map(d => ({
@@ -309,9 +552,18 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
     channels: channelPerformance,
     competitorPositioning,
     competitors,
-    insights: generateInsights(todayData, rateHistory, underpricedDays, competitorPositioning, avgUserOccupancy),
+    insights: allInsights,
     roomType: ROOM_TYPES.find(rt => rt.id === roomTypeId)?.name || 'All Room Types',
-    ratePlan: RATE_PLANS.find(rp => rp.id === ratePlanId)?.name || 'All Rate Plans'
+    ratePlan: RATE_PLANS.find(rp => rp.id === ratePlanId)?.name || 'All Rate Plans',
+    // DEMAND INTELLIGENCE - Using Real Data
+    demandIntelligence: {
+      flightData: demandIntel.flightData,
+      events: demandIntel.events,
+      forecasts: demandIntel.forecasts,
+      priceSpikeAlerts,
+      summary: demandIntel.summary,
+      topOpportunities: demandIntel.topOpportunities
+    }
   };
 };
 
@@ -482,7 +734,7 @@ const KPICard = ({
 };
 
 /**
- * Actionable Insight Card
+ * Actionable Insight Card - Enhanced with demand context
  */
 const InsightCard = ({ insight }: { insight: any }) => {
   const typeStyles = {
@@ -495,12 +747,15 @@ const InsightCard = ({ insight }: { insight: any }) => {
   const style = typeStyles[insight.type as keyof typeof typeStyles];
   const IconComponent = style.icon;
 
+  // Check if this is a demand-related insight
+  const isDemandInsight = insight.demandContext !== undefined;
+
   return (
     <div className={`p-4 rounded-xl ${style.bg} border ${style.border}`}>
       <div className="flex items-start gap-3">
         <IconComponent className={`w-5 h-5 ${style.iconColor} flex-shrink-0 mt-0.5`} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <p className={`text-sm font-semibold ${style.iconColor}`}>{insight.title}</p>
             <span className={`px-2 py-0.5 rounded text-xs font-medium ${
               insight.priority === 'high' ? 'bg-rose-500/20 text-rose-400' :
@@ -509,8 +764,24 @@ const InsightCard = ({ insight }: { insight: any }) => {
             }`}>
               {insight.priority} priority
             </span>
+            {isDemandInsight && (
+              <span className="px-2 py-0.5 rounded text-xs font-medium bg-blue-500/20 text-blue-400 flex items-center gap-1">
+                <Activity className="w-3 h-3" />
+                Demand Signal
+              </span>
+            )}
           </div>
           <p className="text-xs text-slate-400 mb-3">{insight.description}</p>
+          
+          {/* Demand context info */}
+          {isDemandInsight && insight.demandContext && (
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-2 mb-3">
+              <p className="text-xs text-blue-300 flex items-center gap-1">
+                <Plane className="w-3 h-3" />
+                {insight.demandContext}
+              </p>
+            </div>
+          )}
           
           <div className="bg-slate-800/50 rounded-lg p-3 mb-2">
             <p className="text-xs text-slate-300 font-medium mb-1">📋 Recommended Action:</p>
@@ -522,6 +793,376 @@ const InsightCard = ({ insight }: { insight: any }) => {
             <p className="text-xs text-cyan-400">{insight.impact}</p>
           </div>
         </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * UNIFIED ACTIONABLE RECOMMENDATIONS SECTION
+ * Combines pricing opportunities + insights into one scannable view
+ */
+
+/**
+ * Action Card - Compact, scannable action item for stakeholder presentations
+ */
+const ActionCard = ({ 
+  type,
+  date,
+  title,
+  impact,
+  currentRate,
+  suggestedRate,
+  adjustment,
+  drivers,
+  priority,
+  demandScore
+}: {
+  type: 'increase' | 'decrease' | 'hold' | 'alert';
+  date: string;
+  title: string;
+  impact: string;
+  currentRate: number;
+  suggestedRate: number;
+  adjustment: number;
+  drivers: string[];
+  priority: 'high' | 'medium' | 'low';
+  demandScore: number;
+}) => {
+  const getTypeStyles = () => {
+    switch (type) {
+      case 'increase': return { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', badge: 'bg-emerald-500', icon: TrendingUp, iconColor: 'text-emerald-400', action: 'INCREASE RATE' };
+      case 'decrease': return { bg: 'bg-amber-500/10', border: 'border-amber-500/30', badge: 'bg-amber-500', icon: TrendingDown, iconColor: 'text-amber-400', action: 'REDUCE RATE' };
+      case 'alert': return { bg: 'bg-rose-500/10', border: 'border-rose-500/30', badge: 'bg-rose-500', icon: AlertTriangle, iconColor: 'text-rose-400', action: 'ATTENTION' };
+      default: return { bg: 'bg-slate-800/50', border: 'border-white/10', badge: 'bg-slate-500', icon: Minus, iconColor: 'text-slate-400', action: 'HOLD' };
+    }
+  };
+
+  const styles = getTypeStyles();
+  const Icon = styles.icon;
+  
+  // Calculate potential revenue impact (assuming 20 rooms affected)
+  const revenueImpact = Math.abs(adjustment) > 0 ? Math.round((suggestedRate - currentRate) * 20) : 0;
+  
+  // Format date nicely
+  const dateObj = new Date(date);
+  const dayOfWeek = dateObj.toLocaleDateString('en-US', { weekday: 'short' });
+
+  return (
+    <div className={`p-4 rounded-xl ${styles.bg} border ${styles.border} hover:border-white/20 transition-all group`}>
+      <div className="flex items-start gap-4">
+        {/* Left: Date & Priority */}
+        <div className="flex-shrink-0 text-center">
+          <div className={`w-16 p-2 rounded-lg bg-slate-800/80 border border-white/10`}>
+            <p className="text-[10px] text-slate-500 uppercase">{dayOfWeek}</p>
+            <p className="text-xl font-bold text-white">{dateObj.getDate()}</p>
+            <p className="text-[10px] text-slate-400 uppercase">{dateObj.toLocaleDateString('en-US', { month: 'short' })}</p>
+          </div>
+          <div className={`mt-2 px-2 py-1 rounded text-[9px] font-bold tracking-wide ${
+            priority === 'high' ? 'bg-rose-500/30 text-rose-300 border border-rose-500/30' :
+            priority === 'medium' ? 'bg-amber-500/30 text-amber-300 border border-amber-500/30' :
+            'bg-slate-700/50 text-slate-400 border border-slate-600/30'
+          }`}>
+            {priority === 'high' ? '🔥 URGENT' : priority === 'medium' ? '⚡ REVIEW' : '📋 NOTE'}
+          </div>
+        </div>
+
+        {/* Middle: Content */}
+        <div className="flex-1 min-w-0">
+          {/* Title row */}
+          <div className="flex items-center gap-2 mb-2">
+            <Icon className={`w-4 h-4 ${styles.iconColor} flex-shrink-0`} />
+            <h4 className="text-sm font-bold text-white">{title}</h4>
+          </div>
+          
+          {/* Impact description */}
+          <p className="text-xs text-slate-400 mb-3 line-clamp-2">{impact}</p>
+          
+          {/* Drivers tags */}
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {drivers.slice(0, 3).map((driver, i) => (
+              <span key={i} className={`px-2 py-0.5 rounded text-[10px] font-medium ${
+                i === 0 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/20' : 
+                'bg-slate-700/50 text-slate-400'
+              }`}>
+                {driver}
+              </span>
+            ))}
+          </div>
+          
+          {/* Demand meter */}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 flex-1">
+              <span className="text-[10px] text-slate-500 w-12">Demand</span>
+              <div className="flex-1 h-2 bg-slate-700/50 rounded-full overflow-hidden max-w-32">
+                <div 
+                  className={`h-full rounded-full transition-all ${
+                    demandScore >= 70 ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' :
+                    demandScore >= 50 ? 'bg-gradient-to-r from-cyan-500 to-cyan-400' :
+                    demandScore >= 35 ? 'bg-gradient-to-r from-amber-500 to-amber-400' : 
+                    'bg-gradient-to-r from-rose-500 to-rose-400'
+                  }`}
+                  style={{ width: `${demandScore}%` }}
+                />
+              </div>
+              <span className={`text-xs font-bold ${
+                demandScore >= 70 ? 'text-emerald-400' :
+                demandScore >= 50 ? 'text-cyan-400' :
+                demandScore >= 35 ? 'text-amber-400' : 'text-rose-400'
+              }`}>{demandScore}/100</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Right: Price Action */}
+        <div className="flex-shrink-0 text-right min-w-[120px]">
+          {adjustment !== 0 ? (
+            <div className={`p-3 rounded-lg ${adjustment > 0 ? 'bg-emerald-500/10' : 'bg-amber-500/10'}`}>
+              <p className={`text-3xl font-black ${adjustment > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                {adjustment > 0 ? '+' : ''}{adjustment}%
+              </p>
+              <div className="mt-2 space-y-1">
+                <p className="text-[10px] text-slate-500">Current</p>
+                <p className="text-xs text-slate-400 line-through">{formatCurrency(currentRate)}</p>
+                <p className="text-[10px] text-slate-500 mt-1">Suggested</p>
+                <p className="text-sm font-bold text-white">{formatCurrency(suggestedRate)}</p>
+              </div>
+              {revenueImpact > 0 && (
+                <div className="mt-2 pt-2 border-t border-white/10">
+                  <p className="text-[9px] text-slate-500">Est. Daily Impact</p>
+                  <p className={`text-xs font-bold ${adjustment > 0 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                    {adjustment > 0 ? '+' : '-'}{formatCurrency(revenueImpact)}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="p-3 rounded-lg bg-slate-800/50">
+              <p className="text-sm text-slate-400">Hold Rate</p>
+              <p className="text-lg font-bold text-white mt-1">{formatCurrency(currentRate)}</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Quick Action Button - For immediate actions
+ */
+const QuickActionButton = ({ 
+  label, 
+  value, 
+  subtext, 
+  color = 'cyan',
+  onClick 
+}: { 
+  label: string; 
+  value: string; 
+  subtext: string;
+  color?: 'cyan' | 'emerald' | 'amber' | 'rose';
+  onClick?: () => void;
+}) => {
+  const colors = {
+    cyan: 'from-cyan-500/20 to-cyan-600/10 border-cyan-500/30 hover:border-cyan-500/50',
+    emerald: 'from-emerald-500/20 to-emerald-600/10 border-emerald-500/30 hover:border-emerald-500/50',
+    amber: 'from-amber-500/20 to-amber-600/10 border-amber-500/30 hover:border-amber-500/50',
+    rose: 'from-rose-500/20 to-rose-600/10 border-rose-500/30 hover:border-rose-500/50',
+  };
+
+  const textColors = {
+    cyan: 'text-cyan-400',
+    emerald: 'text-emerald-400',
+    amber: 'text-amber-400',
+    rose: 'text-rose-400',
+  };
+
+  return (
+    <button 
+      className={`p-4 rounded-xl bg-gradient-to-br ${colors[color]} border transition-all cursor-pointer hover:scale-[1.02]`}
+      onClick={onClick}
+    >
+      <p className="text-xs text-slate-400 mb-1">{label}</p>
+      <p className={`text-xl font-bold ${textColors[color]}`}>{value}</p>
+      <p className="text-xs text-slate-500 mt-1">{subtext}</p>
+    </button>
+  );
+};
+
+/**
+ * Compact Flight Summary
+ */
+const FlightSummaryCard = ({ flights }: { flights: RealFlightData[] }) => {
+  const todayFlights = flights[0];
+  const next7Days = flights.slice(0, 7);
+  const totalPassengers = next7Days.reduce((sum, f) => sum + f.estimatedPassengers, 0);
+  const peakDay = next7Days.reduce((max, f) => f.estimatedPassengers > max.estimatedPassengers ? f : max, next7Days[0]);
+  const highDemandDays = next7Days.filter(f => f.trend === 'high').length;
+
+  return (
+    <div className="p-4 rounded-xl bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="p-2 rounded-lg bg-blue-500/20">
+          <Plane className="w-5 h-5 text-blue-400" />
+        </div>
+        <div>
+          <h4 className="text-sm font-semibold text-white">Flight Arrivals</h4>
+          <p className="text-xs text-slate-500">Goa International Airport (GOI)</p>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div className="grid grid-cols-4 gap-2 mb-3">
+        <div className="p-2 rounded-lg bg-slate-800/50 text-center">
+          <p className="text-lg font-bold text-white">{todayFlights?.totalArrivals || 0}</p>
+          <p className="text-[10px] text-slate-500">Today</p>
+        </div>
+        <div className="p-2 rounded-lg bg-slate-800/50 text-center">
+          <p className="text-lg font-bold text-cyan-400">{(totalPassengers / 1000).toFixed(0)}k</p>
+          <p className="text-[10px] text-slate-500">7d PAX</p>
+        </div>
+        <div className="p-2 rounded-lg bg-slate-800/50 text-center">
+          <p className="text-lg font-bold text-emerald-400">{highDemandDays}</p>
+          <p className="text-[10px] text-slate-500">Peak Days</p>
+        </div>
+        <div className="p-2 rounded-lg bg-slate-800/50 text-center">
+          <p className="text-sm font-bold text-amber-400">{peakDay?.displayDate}</p>
+          <p className="text-[10px] text-slate-500">Busiest</p>
+        </div>
+      </div>
+
+      {/* Top routes */}
+      {todayFlights?.topOrigins && (
+        <div>
+          <p className="text-[10px] text-slate-500 mb-1">Top Routes Today</p>
+          <div className="flex flex-wrap gap-1">
+            {todayFlights.topOrigins.slice(0, 4).map((route, i) => (
+              <span key={i} className="px-2 py-0.5 rounded bg-slate-800/80 text-[10px] text-slate-300">
+                {route.city} <span className="text-blue-400">({route.count})</span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
+/**
+ * Events Summary Card
+ */
+const EventsSummaryCard = ({ events }: { events: RealEventData[] }) => {
+  const highImpactEvents = events.filter(e => e.expectedImpact === 'high');
+  const upcomingCount = events.length;
+
+  const getEventIcon = (category: RealEventData['category']) => {
+    switch (category) {
+      case 'holiday': return CalendarDays;
+      case 'sports': return Trophy;
+      case 'entertainment': return Music;
+      case 'business': return Briefcase;
+      case 'cultural': return Star;
+      case 'religious': return Star;
+      default: return Calendar;
+    }
+  };
+
+  return (
+    <div className="p-4 rounded-xl bg-gradient-to-br from-violet-500/10 to-violet-600/5 border border-violet-500/20">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-lg bg-violet-500/20">
+            <CalendarDays className="w-5 h-5 text-violet-400" />
+          </div>
+          <div>
+            <h4 className="text-sm font-semibold text-white">Events & Holidays</h4>
+            <p className="text-xs text-slate-500">{upcomingCount} events in period</p>
+          </div>
+        </div>
+        {highImpactEvents.length > 0 && (
+          <span className="px-2 py-1 rounded-full bg-rose-500/20 text-rose-400 text-xs font-bold">
+            {highImpactEvents.length} High Impact
+          </span>
+        )}
+      </div>
+
+      {/* Event list */}
+      <div className="space-y-2 max-h-40 overflow-y-auto">
+        {events.slice(0, 5).map((event) => {
+          const Icon = getEventIcon(event.category);
+          return (
+            <div key={event.id} className="flex items-center gap-2 p-2 rounded-lg bg-slate-800/30">
+              <Icon className={`w-4 h-4 flex-shrink-0 ${
+                event.expectedImpact === 'high' ? 'text-rose-400' :
+                event.expectedImpact === 'medium' ? 'text-amber-400' : 'text-slate-400'
+              }`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-medium text-white truncate">{event.title}</p>
+                <p className="text-[10px] text-slate-500">{formatDate(event.date)} • {event.location}</p>
+              </div>
+              <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                event.expectedImpact === 'high' ? 'bg-rose-500/20 text-rose-400' :
+                event.expectedImpact === 'medium' ? 'bg-amber-500/20 text-amber-400' :
+                'bg-slate-700 text-slate-400'
+              }`}>
+                +{event.priceRecommendation}%
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Competitor Price Spike Alerts - Simplified
+ */
+const PriceSpikeAlertsCard = ({ alerts }: { alerts: PriceSpikeAlert[] }) => {
+  if (alerts.length === 0) {
+    return (
+      <div className="p-4 rounded-xl bg-slate-800/30 border border-white/5">
+        <div className="flex items-center gap-2 text-slate-500">
+          <CheckCircle className="w-5 h-5 text-emerald-400" />
+          <span className="text-sm">No significant competitor price changes detected</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 rounded-xl bg-gradient-to-br from-amber-500/10 to-orange-600/5 border border-amber-500/20">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <Flame className="w-5 h-5 text-amber-400" />
+          <span className="text-sm font-semibold text-white">Competitor Price Spikes</span>
+        </div>
+        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs font-medium">
+          {alerts.length} alerts
+        </span>
+      </div>
+      
+      <div className="space-y-2">
+        {alerts.slice(0, 5).map((alert, i) => (
+          <div key={i} className="p-3 rounded-lg bg-slate-800/50 border border-amber-500/10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium text-white">{alert.competitorName}</span>
+              <span className="text-lg font-bold text-amber-400">+{alert.changePercent}%</span>
+            </div>
+            <div className="flex items-center gap-4 text-xs text-slate-500 mb-2">
+              <span>{alert.displayDate}</span>
+              <span>{formatCurrency(alert.previousRate)} → {formatCurrency(alert.newRate)}</span>
+            </div>
+            <p className="text-xs text-slate-400 mb-2">{alert.reason}</p>
+            <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <p className="text-xs text-amber-300">
+                <span className="font-medium">💡 Action: </span>
+                {alert.actionRecommendation}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1223,38 +1864,95 @@ const MultiLineChart = ({
 };
 
 /**
- * Channel Performance Row
+ * Channel Performance Row - Rate Parity Focus
+ * Uses Win/Meet/Loss terminology for rate parity status
+ * - Win: Channel priced higher than direct (green) - your direct rate is competitive
+ * - Meet: Rates within ₹100 parity (cyan) - parity maintained
+ * - Loss: Channel undercutting direct (red) - parity violation, needs attention
+ * 
+ * Key Metrics Shown:
+ * - Channel Rate vs Direct Rate
+ * - Commission %
+ * - Net Effective Rate (after commission)
+ * - Parity Score (0-100)
  */
-const ChannelRow = ({ channel, index }: { channel: any; index: number }) => (
-  <div className="group flex items-center gap-4 p-3 rounded-xl hover:bg-slate-800/50 transition-all">
-    <div className={`w-2 h-2 rounded-full ${
-      channel.parityStatus === 'parity' ? 'bg-emerald-500' :
-      channel.parityStatus === 'premium' ? 'bg-amber-500' : 'bg-cyan-500'
-    }`} />
-    
-    <div className="flex-1 min-w-0">
-      <div className="flex items-center gap-2">
-        <span className="text-sm font-medium text-white">{channel.name}</span>
-        <span className={`px-1.5 py-0.5 rounded text-xs ${
-          channel.parityStatus === 'parity' ? 'bg-emerald-500/20 text-emerald-400' :
-          channel.parityStatus === 'premium' ? 'bg-amber-500/20 text-amber-400' : 'bg-cyan-500/20 text-cyan-400'
-        }`}>
-          {channel.parityStatus}
-        </span>
+const ChannelRow = ({ channel, index }: { channel: any; index: number }) => {
+  const statusConfig = {
+    win: { bg: 'bg-emerald-500', badge: 'bg-emerald-500/20 text-emerald-400', label: 'Win', icon: '✓' },
+    meet: { bg: 'bg-cyan-500', badge: 'bg-cyan-500/20 text-cyan-400', label: 'Meet', icon: '=' },
+    loss: { bg: 'bg-rose-500', badge: 'bg-rose-500/20 text-rose-400', label: 'Loss', icon: '!' }
+  };
+  const config = statusConfig[channel.parityStatus as keyof typeof statusConfig] || statusConfig.meet;
+  const isDirect = channel.name === 'Direct Website';
+
+  return (
+    <div className={`group flex items-center gap-3 p-2.5 rounded-xl transition-all ${
+      channel.parityStatus === 'loss' ? 'bg-rose-500/5 hover:bg-rose-500/10' : 'hover:bg-slate-800/50'
+    }`}>
+      {/* Status indicator */}
+      <div className={`w-1.5 h-8 rounded-full ${config.bg}`} />
+      
+      {/* Channel info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-white">{channel.name}</span>
+          {!isDirect && (
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${config.badge}`}>
+              {config.icon} {config.label}
+            </span>
+          )}
+          {isDirect && (
+            <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-cyan-500/20 text-cyan-400">
+              BASE
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 mt-0.5 text-[11px] text-slate-500">
+          <span className="text-white font-medium">{formatCurrency(channel.rate)}</span>
+          {!isDirect && (
+            <>
+              <span className={channel.parityGapVsDirect > 0 ? 'text-emerald-400' : channel.parityGapVsDirect < 0 ? 'text-rose-400' : 'text-slate-400'}>
+                {channel.parityGapVsDirect > 0 ? '+' : ''}{formatCurrency(channel.parityGapVsDirect)} vs direct
+              </span>
+              <span>{channel.commission}% comm</span>
+            </>
+          )}
+          {isDirect && <span className="text-emerald-400">0% commission</span>}
+        </div>
       </div>
-      <div className="flex items-center gap-4 mt-1 text-xs text-slate-500">
-        <span>Rate: {formatCurrency(channel.rate)}</span>
-        <span>{channel.bookings} bookings</span>
-        <span>{channel.commission}% commission</span>
+      
+      {/* Right side metrics */}
+      <div className="text-right">
+        {!isDirect ? (
+          <>
+            <p className="text-xs text-slate-400">Net Rate</p>
+            <p className={`text-sm font-bold ${channel.netEffectiveRate < channel.directRate ? 'text-rose-400' : 'text-emerald-400'}`}>
+              {formatCurrency(channel.netEffectiveRate)}
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-xs text-slate-400">Your Rate</p>
+            <p className="text-sm font-bold text-cyan-400">{formatCurrency(channel.rate)}</p>
+          </>
+        )}
       </div>
+      
+      {/* Parity score indicator */}
+      {!isDirect && (
+        <div className="w-10 text-center">
+          <div className={`text-xs font-bold ${
+            channel.parityScore >= 80 ? 'text-emerald-400' :
+            channel.parityScore >= 50 ? 'text-amber-400' : 'text-rose-400'
+          }`}>
+            {Math.round(channel.parityScore)}
+          </div>
+          <div className="text-[9px] text-slate-600">score</div>
+        </div>
+      )}
     </div>
-    
-    <div className="text-right">
-      <p className="text-sm font-bold text-white">{formatCurrency(channel.revenue)}</p>
-      <p className="text-xs text-slate-500">{channel.marketShare}% share</p>
-    </div>
-  </div>
-);
+  );
+};
 
 /**
  * Enhanced Competitor Card - Shows actionable competitive intelligence
@@ -1633,22 +2331,293 @@ function CompetitiveIntelligenceDashboard() {
             />
             
             <KPICard
-              title="Revenue Potential"
-              value={data.kpis.potentialRevenue}
-              format="currency"
-              icon={IndianRupee}
-              gradient="violet"
-              subtitle="Monthly opportunity"
-              actionHint="From rate optimization"
+              title="Parity Score"
+              value={Math.round(data.channels.reduce((sum, c) => sum + (c.parityScore || 100), 0) / data.channels.length)}
+              icon={CheckCircle}
+              gradient={
+                Math.round(data.channels.reduce((sum, c) => sum + (c.parityScore || 100), 0) / data.channels.length) >= 80 
+                  ? 'emerald' 
+                  : Math.round(data.channels.reduce((sum, c) => sum + (c.parityScore || 100), 0) / data.channels.length) >= 50 
+                    ? 'amber' 
+                    : 'rose'
+              }
+              subtitle={`${data.channels.filter(c => c.parityStatus === 'win' || c.parityStatus === 'meet').length}/${data.channels.length} channels OK`}
+              actionHint={data.channels.filter(c => c.parityStatus === 'loss').length > 0 
+                ? `${data.channels.filter(c => c.parityStatus === 'loss').length} parity violations` 
+                : undefined}
             />
             
             <KPICard
-              title="Competitors"
-              value={data.competitors.length}
-              icon={Users}
-              gradient="blue"
-              subtitle="Being tracked"
+              title="Demand Index"
+              value={data.demandIntelligence?.summary?.avgDemandScore || 50}
+              icon={Flame}
+              gradient={
+                (data.demandIntelligence?.summary?.avgDemandScore || 50) >= 70 
+                  ? 'rose' 
+                  : (data.demandIntelligence?.summary?.avgDemandScore || 50) >= 50 
+                    ? 'amber' 
+                    : 'cyan'
+              }
+              subtitle={`${data.demandIntelligence?.summary?.highDemandDays || 0} high demand days`}
+              actionHint={
+                (data.demandIntelligence?.summary?.avgDemandScore || 50) >= 70 
+                  ? 'Strong demand - premium pricing' 
+                  : (data.demandIntelligence?.summary?.avgDemandScore || 50) <= 40 
+                    ? 'Low demand - consider promos'
+                    : undefined
+              }
             />
+          </div>
+
+          {/* UNIFIED ACTIONABLE RECOMMENDATIONS SECTION */}
+          <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/5 overflow-hidden">
+            <div className="p-6 border-b border-white/5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-600">
+                    <Zap className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">Actionable Recommendations</h3>
+                    <p className="text-sm text-slate-500">Demand-based pricing actions • Flights, events & market signals</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Quick Stats Bar */}
+            <div className="px-6 py-4 bg-slate-800/30 border-b border-white/5">
+              <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+                <QuickActionButton 
+                  label="High Demand Days"
+                  value={String(data.demandIntelligence.summary.highDemandDays)}
+                  subtext="Raise rates"
+                  color="emerald"
+                />
+                <QuickActionButton 
+                  label="Upcoming Events"
+                  value={String(data.demandIntelligence.summary.upcomingEvents)}
+                  subtext={`Peak: ${data.demandIntelligence.summary.peakDays?.split(',')[0] || 'N/A'}`}
+                  color="amber"
+                />
+                <QuickActionButton 
+                  label="Avg Demand Score"
+                  value={`${data.demandIntelligence.summary.avgDemandScore}/100`}
+                  subtext={data.demandIntelligence.summary.avgDemandScore >= 60 ? 'Strong demand' : 'Moderate'}
+                  color="cyan"
+                />
+                <QuickActionButton 
+                  label="Expected Passengers"
+                  value={`${(data.demandIntelligence.summary.totalExpectedPassengers / 1000).toFixed(0)}k`}
+                  subtext="GOA arrivals"
+                  color="cyan"
+                />
+                <QuickActionButton 
+                  label="Revenue Potential"
+                  value={formatCurrency(data.kpis.potentialRevenue)}
+                  subtext="From optimization"
+                  color="emerald"
+                />
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {/* Two Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* Left Column: Context Cards */}
+                <div className="space-y-4">
+                  <FlightSummaryCard flights={data.demandIntelligence.flightData} />
+                  <EventsSummaryCard events={data.demandIntelligence.events} />
+                  
+                  {/* Price Spike Alerts */}
+                  {data.demandIntelligence.priceSpikeAlerts.length > 0 && (
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Flame className="w-5 h-5 text-amber-400" />
+                        <span className="text-sm font-semibold text-white">Competitor Alerts</span>
+                        <span className="px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-400 text-xs">{data.demandIntelligence.priceSpikeAlerts.length}</span>
+                      </div>
+                      {data.demandIntelligence.priceSpikeAlerts.slice(0, 2).map((alert, i) => (
+                        <div key={i} className="p-2 rounded-lg bg-slate-800/50 mb-2 last:mb-0">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-white font-medium">{alert.competitorName}</span>
+                            <span className="text-xs font-bold text-amber-400">+{alert.changePercent}%</span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 mt-1">{alert.displayDate} • {alert.reason}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                
+                {/* Right Column: Action Cards */}
+                <div className="lg:col-span-2 space-y-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-sm font-semibold text-white flex items-center gap-2">
+                      <Brain className="w-4 h-4 text-violet-400" />
+                      Priority Actions
+                    </h4>
+                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500" /> Increase
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-amber-500" /> Adjust
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <div className="w-2 h-2 rounded-full bg-rose-500" /> Alert
+                      </span>
+                    </div>
+                  </div>
+                  
+                  {/* Priority Actions - Realistic, stakeholder-ready data */}
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                    {(() => {
+                      // Build realistic action items from actual data
+                      const actionItems: Array<{
+                        type: 'increase' | 'decrease' | 'alert';
+                        date: string;
+                        title: string;
+                        impact: string;
+                        adjustment: number;
+                        drivers: string[];
+                        priority: 'high' | 'medium' | 'low';
+                        demandScore: number;
+                        eventDetails?: string;
+                      }> = [];
+                      
+                      // Get forecasts with events for realistic data
+                      data.demandIntelligence.forecasts.forEach((forecast) => {
+                        const dayEvents = data.demandIntelligence.events.filter(e => {
+                          const eventStart = e.date;
+                          const eventEnd = e.endDate || e.date;
+                          return forecast.date >= eventStart && forecast.date <= eventEnd;
+                        });
+                        
+                        const dayFlights = data.demandIntelligence.flightData.find(f => f.date === forecast.date);
+                        
+                        // Only create action items for meaningful situations
+                        if (dayEvents.length > 0 || forecast.overallScore >= 65 || forecast.overallScore <= 35 || forecast.isWeekend) {
+                          const highImpactEvent = dayEvents.find(e => e.expectedImpact === 'high');
+                          const mediumImpactEvent = dayEvents.find(e => e.expectedImpact === 'medium');
+                          const mainEvent = highImpactEvent || mediumImpactEvent || dayEvents[0];
+                          
+                          let title = '';
+                          let impact = '';
+                          let adjustment = forecast.suggestedPriceAdjustment;
+                          let priority: 'high' | 'medium' | 'low' = 'low';
+                          
+                          // Build flight info string
+                          const flightInfo = dayFlights 
+                            ? `${dayFlights.totalArrivals} flights • ${dayFlights.estimatedPassengers.toLocaleString()} passengers arriving`
+                            : null;
+                          
+                          if (mainEvent) {
+                            // Event-driven action
+                            title = mainEvent.title;
+                            if (mainEvent.expectedImpact === 'high') {
+                              impact = flightInfo 
+                                ? `${mainEvent.priceRecommendation}% premium opportunity • ${flightInfo}`
+                                : `${mainEvent.priceRecommendation}% premium opportunity • ${mainEvent.description}`;
+                              adjustment = mainEvent.priceRecommendation;
+                              priority = 'high';
+                            } else if (mainEvent.expectedImpact === 'medium') {
+                              impact = flightInfo
+                                ? `Expected ${Math.round(mainEvent.priceRecommendation * 0.7)}% ADR lift • ${flightInfo}`
+                                : `Expected ${Math.round(mainEvent.priceRecommendation * 0.7)}% ADR lift • ${mainEvent.location}`;
+                              adjustment = Math.round(mainEvent.priceRecommendation * 0.7);
+                              priority = 'medium';
+                            } else {
+                              impact = flightInfo
+                                ? `Minor demand boost • ${flightInfo}`
+                                : `Minor demand boost • ${mainEvent.location}`;
+                              adjustment = mainEvent.priceRecommendation;
+                              priority = 'low';
+                            }
+                          } else if (forecast.overallScore >= 70) {
+                            // High demand day without specific event
+                            title = forecast.isWeekend ? 'Peak Weekend' : 'High Demand Period';
+                            impact = flightInfo 
+                              ? `Strong booking pace • ${flightInfo}`
+                              : 'Strong booking pace • Peak season demand';
+                            priority = forecast.overallScore >= 80 ? 'high' : 'medium';
+                          } else if (forecast.overallScore <= 35) {
+                            // Low demand - need promotions
+                            title = 'Low Demand Alert';
+                            impact = flightInfo
+                              ? `Consider flash sale • Only ${flightInfo}`
+                              : 'Consider flash sale or OTA visibility boost • Protect occupancy';
+                            priority = 'medium';
+                          } else if (forecast.isWeekend) {
+                            title = 'Weekend Premium';
+                            impact = flightInfo 
+                              ? `Leisure travel peak • ${flightInfo}`
+                              : 'Leisure travel peak • Standard weekend uplift';
+                            priority = 'low';
+                          } else {
+                            return; // Skip unremarkable days
+                          }
+                          
+                          // Build drivers list
+                          const drivers: string[] = [];
+                          if (mainEvent) {
+                            drivers.push(mainEvent.category.charAt(0).toUpperCase() + mainEvent.category.slice(1));
+                            if (mainEvent.isNational) drivers.push('National Holiday');
+                          }
+                          // Always show flight info in drivers if available
+                          if (dayFlights) {
+                            drivers.push(`✈️ ${dayFlights.totalArrivals} flights`);
+                          }
+                          if (forecast.isWeekend) drivers.push('Weekend');
+                          if (forecast.factors.seasonality >= 80) drivers.push('Peak Season');
+                          
+                          actionItems.push({
+                            type: adjustment > 0 ? 'increase' : adjustment < 0 ? 'decrease' : 'increase',
+                            date: forecast.date,
+                            title,
+                            impact,
+                            adjustment,
+                            drivers: drivers.slice(0, 3),
+                            priority,
+                            demandScore: forecast.overallScore,
+                            eventDetails: mainEvent?.description
+                          });
+                        }
+                      });
+                      
+                      // Sort by DATE first (chronological), then by priority within same date
+                      const sortedActions = actionItems
+                        .sort((a, b) => {
+                          // First sort by date (chronological)
+                          const dateCompare = new Date(a.date).getTime() - new Date(b.date).getTime();
+                          if (dateCompare !== 0) return dateCompare;
+                          // Then by priority within same date
+                          const priorityOrder = { high: 0, medium: 1, low: 2 };
+                          return priorityOrder[a.priority] - priorityOrder[b.priority];
+                        })
+                        .slice(0, 12);
+                      
+                      return sortedActions.map((action, i) => (
+                        <ActionCard
+                          key={`action-${i}`}
+                          type={action.type}
+                          date={action.date}
+                          title={action.title}
+                          impact={action.impact}
+                          currentRate={data.kpis.currentRate}
+                          suggestedRate={Math.round(data.kpis.currentRate * (1 + action.adjustment / 100))}
+                          adjustment={action.adjustment}
+                          drivers={action.drivers}
+                          priority={action.priority}
+                          demandScore={action.demandScore}
+                        />
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Main Chart Section - Multi-Line Rate Comparison */}
@@ -1703,125 +2672,166 @@ function CompetitiveIntelligenceDashboard() {
             </div>
           </div>
 
-          {/* Two Column Layout */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Actionable Insights */}
-            <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/5">
-              <div className="p-6 border-b border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gradient-to-br from-violet-500 to-violet-600">
-                    <Brain className="w-5 h-5 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-white">Action Required</h3>
-                    <p className="text-sm text-slate-500">AI-powered recommendations</p>
-                  </div>
-                </div>
-              </div>
-              <div className="p-6 space-y-4 max-h-[500px] overflow-y-auto">
-                {data.insights.map((insight, i) => (
-                  <InsightCard key={i} insight={insight} />
-                ))}
-              </div>
-            </div>
-
-            {/* Competitor Analysis - Actionable Intelligence */}
-            <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/5">
-              <div className="p-6 border-b border-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-gradient-to-br from-amber-500 to-amber-600">
-                      <Award className="w-5 h-5 text-white" />
+          {/* Combined: Competitor Watch + Channel Performance - Optimized Layout */}
+          <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/5 overflow-hidden">
+            {/* Unified Header */}
+            <div className="p-4 border-b border-white/5 bg-slate-800/30">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-gradient-to-br from-amber-500 to-amber-600">
+                      <Award className="w-4 h-4 text-white" />
                     </div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">Competitor Watch</h3>
-                      <p className="text-sm text-slate-500">
-                        {isViewingToday ? "Today's rates" : `Rates on ${selectedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-                        {' • '}Click to see risk dates
-                      </p>
-                    </div>
-                  </div>
-                  
-                  {/* Threat summary */}
-                  {data.competitorPositioning.filter(c => c.threatLevel !== 'low').length > 0 && (
-                    <div className="px-3 py-1.5 bg-rose-500/10 border border-rose-500/20 rounded-lg">
-                      <span className="text-xs text-rose-400 font-medium">
-                        {data.competitorPositioning.filter(c => c.threatLevel === 'high').length} high-risk competitors
+                    <span className="text-sm font-semibold text-white">Competitor Watch</span>
+                    {data.competitorPositioning.filter(c => c.threatLevel !== 'low').length > 0 && (
+                      <span className="px-1.5 py-0.5 bg-rose-500/20 text-rose-400 text-[10px] rounded font-medium">
+                        {data.competitorPositioning.filter(c => c.threatLevel === 'high').length} at risk
                       </span>
+                    )}
+                  </div>
+                  <div className="h-4 w-px bg-white/10" />
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-gradient-to-br from-emerald-500 to-emerald-600">
+                      <Globe className="w-4 h-4 text-white" />
                     </div>
-                  )}
+                    <span className="text-sm font-semibold text-white">Channel Performance</span>
+                    <div className="flex items-center gap-2 text-[10px] ml-2">
+                      <span className="flex items-center gap-1 text-emerald-400"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />Win</span>
+                      <span className="flex items-center gap-1 text-cyan-400"><div className="w-1.5 h-1.5 rounded-full bg-cyan-500" />Meet</span>
+                      <span className="flex items-center gap-1 text-rose-400"><div className="w-1.5 h-1.5 rounded-full bg-rose-500" />Loss</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 px-2 py-1 bg-cyan-500/10 rounded-lg border border-cyan-500/20">
+                    <Building2 className="w-3.5 h-3.5 text-cyan-400" />
+                    <span className="text-xs text-slate-400">Direct Rate:</span>
+                    <span className="text-sm font-bold text-cyan-400">{formatCurrency(data.channels[0]?.rate || data.kpis.currentRate)}</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-2 py-1 bg-emerald-500/10 rounded-lg border border-emerald-500/20">
+                    <span className="text-xs text-slate-400">Parity:</span>
+                    <span className="text-sm font-bold text-emerald-400">
+                      {data.channels.filter(c => c.parityStatus === 'meet' || c.parityStatus === 'win').length}/{data.channels.length}
+                    </span>
+                  </div>
                 </div>
               </div>
-              
-              {/* Your rate benchmark */}
-              <div className="px-6 py-4 bg-cyan-500/5 border-b border-white/5">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
-                      <Building2 className="w-5 h-5 text-white" />
+            </div>
+
+            {/* Two Column Content Grid */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 divide-x divide-white/5">
+              {/* LEFT: Competitor Watch */}
+              <div>
+                {/* Your property mini-bar */}
+                <div className="px-4 py-2 bg-cyan-500/5 border-b border-white/5 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-md bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center">
+                      <Building2 className="w-3 h-3 text-white" />
+                    </div>
+                    <span className="text-xs font-medium text-white">{data.roomType}</span>
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    {isViewingToday ? "Today" : selectedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    {' • '}<span className="text-cyan-400">{data.competitorPositioning.filter(c => c.todayRate < data.kpis.currentRate).length}/{data.competitorPositioning.length}</span> below you
+                  </p>
+                </div>
+                
+                <div className="p-2 space-y-1.5 max-h-[280px] overflow-y-auto">
+                  {data.competitorPositioning.map((comp) => (
+                    <CompetitorCard 
+                      key={comp.id} 
+                      competitor={comp}
+                      userTodayRate={data.kpis.currentRate}
+                      expanded={expandedCompetitor === comp.id}
+                      onToggle={() => setExpandedCompetitor(
+                        expandedCompetitor === comp.id ? null : comp.id
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              {/* RIGHT: Channel Performance */}
+              <div>
+                {/* Channel Rate Parity Summary - Win/Meet/Loss */}
+                <div className="px-4 py-2 bg-slate-800/30 border-b border-white/5">
+                  <div className="grid grid-cols-5 gap-2 text-center">
+                    <div>
+                      <p className="text-sm font-bold text-emerald-400">{data.channels.filter(c => c.parityStatus === 'win').length}</p>
+                      <p className="text-[9px] text-slate-500">Win ✓</p>
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-white">
-                        Your Property {isViewingToday ? '(Today)' : `(${selectedStartDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })})`}
+                      <p className="text-sm font-bold text-cyan-400">{data.channels.filter(c => c.parityStatus === 'meet').length}</p>
+                      <p className="text-[9px] text-slate-500">Meet =</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-rose-400">{data.channels.filter(c => c.parityStatus === 'loss').length}</p>
+                      <p className="text-[9px] text-slate-500">Loss !</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-white">
+                        {Math.round(data.channels.reduce((sum, c) => sum + (c.parityScore || 0), 0) / data.channels.length)}
                       </p>
-                      <p className="text-xs text-slate-400">{data.roomType}</p>
+                      <p className="text-[9px] text-slate-500">Avg Score</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-amber-400">
+                        {Math.round(data.channels.slice(1).reduce((sum, c) => sum + c.commission, 0) / (data.channels.length - 1))}%
+                      </p>
+                      <p className="text-[9px] text-slate-500">Avg Comm</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-cyan-400">{formatCurrency(data.kpis.currentRate)}</p>
-                    <p className="text-xs text-slate-500">Benchmark rate</p>
-                  </div>
                 </div>
-              </div>
-              
-              <div className="p-4 space-y-3 max-h-[450px] overflow-y-auto">
-                {data.competitorPositioning.map((comp) => (
-                  <CompetitorCard 
-                    key={comp.id} 
-                    competitor={comp}
-                    userTodayRate={data.kpis.currentRate}
-                    expanded={expandedCompetitor === comp.id}
-                    onToggle={() => setExpandedCompetitor(
-                      expandedCompetitor === comp.id ? null : comp.id
-                    )}
-                  />
-                ))}
-              </div>
-              
-              {/* Summary insight */}
-              <div className="px-6 py-4 border-t border-white/5 bg-slate-800/30">
-                <div className="flex items-start gap-3">
-                  <Zap className="w-4 h-4 text-cyan-400 mt-0.5" />
-                  <div className="text-xs text-slate-400">
-                    <span className="text-cyan-400 font-medium">Insight: </span>
-                    {data.competitorPositioning.filter(c => c.todayRate < data.kpis.currentRate).length} of {data.competitorPositioning.length} competitors 
-                    are priced below you today. 
-                    {data.competitorPositioning.filter(c => c.threatLevel === 'high').length > 0 && (
-                      <span className="text-rose-400"> {data.competitorPositioning.filter(c => c.threatLevel === 'high').length} have multiple dates where they significantly undercut your rates.</span>
-                    )}
-                  </div>
+                
+                <div className="p-2 space-y-0.5 max-h-[280px] overflow-y-auto">
+                  {data.channels.map((channel, i) => (
+                    <ChannelRow key={channel.name} channel={channel} index={i} />
+                  ))}
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Channel Performance */}
-          <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-white/5">
-            <div className="p-6 border-b border-white/5">
+            {/* Combined Footer Insights - Rate Parity Focus */}
+            <div className="px-4 py-2 border-t border-white/5 bg-slate-800/30 flex items-center justify-between">
+              <p className="text-xs text-slate-400">
+                <Zap className="w-3 h-3 text-cyan-400 inline mr-1" />
+                <span className="text-cyan-400">{data.competitorPositioning.filter(c => c.threatLevel === 'high').length}</span> competitors at risk
+                {data.channels.filter(c => c.parityStatus === 'loss').length > 0 && (
+                  <>
+                    {' • '}
+                    <span className="text-rose-400">{data.channels.filter(c => c.parityStatus === 'loss').length}</span> channels need parity fix
+                  </>
+                )}
+                {data.channels.filter(c => c.parityStatus === 'loss').length === 0 && (
+                  <>
+                    {' • '}
+                    <span className="text-emerald-400">All channels at parity</span>
+                  </>
+                )}
+              </p>
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600">
-                  <Globe className="w-5 h-5 text-white" />
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-slate-500">Parity Health:</span>
+                  <div className="flex gap-0.5">
+                    {[...Array(5)].map((_, i) => {
+                      const score = Math.round(data.channels.reduce((sum, c) => sum + (c.parityScore || 0), 0) / data.channels.length);
+                      const filled = i < Math.ceil(score / 20);
+                      return (
+                        <div key={i} className={`w-2 h-2 rounded-sm ${
+                          filled ? (score >= 80 ? 'bg-emerald-500' : score >= 50 ? 'bg-amber-500' : 'bg-rose-500') : 'bg-slate-700'
+                        }`} />
+                      );
+                    })}
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">Channel Performance</h3>
-                  <p className="text-sm text-slate-500">Revenue and parity status by distribution channel</p>
-                </div>
+                <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                  data.kpis.currentRate > data.kpis.avgCompetitorRate 
+                    ? 'bg-amber-500/20 text-amber-400' 
+                    : 'bg-emerald-500/20 text-emerald-400'
+                }`}>
+                  {data.kpis.currentRate > data.kpis.avgCompetitorRate ? 'Premium' : 'Competitive'}
+                </span>
               </div>
-            </div>
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-2">
-              {data.channels.map((channel, i) => (
-                <ChannelRow key={channel.name} channel={channel} index={i} />
-              ))}
             </div>
           </div>
         </main>
