@@ -16,7 +16,7 @@ import {
   Send, Mic, MicOff, Maximize2, Minimize2, BarChart3, PieChart, LineChart,
   Package, Lock, UserCheck, Calendar as CalendarIcon, MapPin, Cloud, Umbrella, Sun as SunIcon,
   Brain, Cpu, Activity, Zap as ZapIcon, AlertCircle, CheckCircle2, Clock as ClockIcon,
-  Users, TrendingUp as TrendingUpIcon, Settings as SettingsIcon, MessageSquare, BarChart,
+  Users as UsersIcon, TrendingUp as TrendingUpIcon, Settings as SettingsIcon, MessageSquare, BarChart,
   Layers, Archive, Bell, BellOff, Volume2, VolumeX, Pause, Play, 
   Building, Minus, Edit3, BookOpen, ArrowUp, ArrowDown, Gauge, DollarSign, Tag, ArrowRight, ArrowLeft,
   Trash2, Globe
@@ -39,6 +39,10 @@ import EnhancedAIRecommendationTooltip from "../components/EnhancedAIRecommendat
 import EnhancedAutoAgentTooltip from "../components/EnhancedAutoAgentTooltip";
 import { Toaster, useToast } from "../components/ui/toast";
 import ColorLegend from '../components/ColorLegend';
+import { CompetitorTooltipContent } from '../components/ui/competitor-tooltip';
+import CompetitorSideDrawer from '../components/ui/competitor-side-drawer';
+import CompetitiveAnalyticsDrawer from '../components/ui/competitive-analytics-drawer';
+import EnhancedAgenticAI from '../components/EnhancedAgenticAI';
 // Import our standardized types for data consistency
 import { 
   StandardizedRateData, 
@@ -746,6 +750,38 @@ export default function RevenuePage() {
     return now;
   });
   const [isColorLegendOpen, setIsColorLegendOpen] = useState(false);
+  const [isCompetitorDrawerOpen, setIsCompetitorDrawerOpen] = useState(false);
+  const [isCompetitiveAnalyticsOpen, setIsCompetitiveAnalyticsOpen] = useState(false);
+  const [isEnhancedAgenticAIOpen, setIsEnhancedAgenticAIOpen] = useState(false);
+  const [competitorDrawerData, setCompetitorDrawerData] = useState<{
+    competitors: any[];
+    userChannels: any[];
+    currentDate: string;
+    roomType: string;
+    currentPrice?: number;
+  } | null>(null);
+
+  // Date navigation handler for competitor drawer
+  const handleCompetitorDateNavigate = useCallback((direction: 'prev' | 'next') => {
+    if (!competitorDrawerData) return;
+    
+    const currentDate = new Date(competitorDrawerData.currentDate);
+    const newDate = new Date(currentDate);
+    
+    if (direction === 'prev') {
+      newDate.setDate(currentDate.getDate() - 1);
+    } else {
+      newDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    const newDateStr = newDate.toISOString().split('T')[0];
+    
+    // Update the drawer data with the new date
+    setCompetitorDrawerData({
+      ...competitorDrawerData,
+      currentDate: newDateStr
+    });
+  }, [competitorDrawerData]);
   const [changes, setChanges] = useState<Array<{
     id: string;
     type: 'price' | 'inventory';
@@ -1315,6 +1351,32 @@ export default function RevenuePage() {
     { id: 'groups', name: 'Group Bookings', type: 'group', commission: 8, isActive: true }
   ];
 
+  // Duplicate functions removed - definitions are below in the file
+
+  const generateChannelComparison = (ownChannels: any[], competitors: any[]) => {
+    const channels = ['direct', 'booking.com', 'expedia', 'agoda'];
+    
+    return channels.map((channel, index) => {
+      const ownChannel = ownChannels.find(ch => ch.channel === channel);
+      const competitorRates = competitors.map(comp => 
+        comp.channels?.find((ch: any) => ch.channel === channel)?.rate || comp.rate
+      ).filter(Boolean);
+      
+      const avgCompetitorRate = competitorRates.length > 0 
+        ? competitorRates.reduce((sum, rate) => sum + rate, 0) / competitorRates.length 
+        : 0;
+
+      return {
+        channel,
+        ownRate: ownChannel?.rate || 0,
+        avgCompetitorRate,
+        priceDifference: ownChannel?.rate ? ownChannel.rate - avgCompetitorRate : 0,
+        competitorCount: competitorRates.length,
+        ranking: Math.floor(Math.random() * competitorRates.length) + 1
+      };
+    });
+  };
+
   // Sample Data
   const sampleInsights: AIInsight[] = [
     {
@@ -1699,6 +1761,40 @@ export default function RevenuePage() {
   // EventTooltip component REMOVED - Using unified RichTooltip system for consistency
   // All event tooltips now use showRichTooltip('event', eventData, e) for premium styling
 
+  // Helper functions for channel data generation
+  const generateChannelData = (baseRate: number, competitorName: string, dateIndex: number) => {
+    const channels = ['direct', 'booking.com', 'expedia', 'agoda'];
+    const rateVariations = [0.95, 1.05, 1.08, 1.02];
+    
+    return channels.map((channel, index) => ({
+      channel,
+      rate: Math.round(baseRate * rateVariations[index] + (dateIndex * 20) + (index * 50)),
+      availability: Math.max(60 + (dateIndex % 25) + (index * 5), 15),
+      commission: channel === 'direct' ? 0 : Math.round(15 + (index * 2.5)),
+      lastUpdated: new Date(),
+      isActive: Math.random() > 0.1
+    }));
+  };
+
+  const generateOwnChannelData = (baseRate: number, dateIndex: number = 0) => {
+    const channels = [
+      { name: 'direct', commission: 0, bookingMultiplier: 0.3 },
+      { name: 'booking.com', commission: 18, bookingMultiplier: 0.4 },
+      { name: 'expedia', commission: 20, bookingMultiplier: 0.2 },
+      { name: 'agoda', commission: 16, bookingMultiplier: 0.1 }
+    ];
+
+    return channels.map((channel, index) => ({
+      channel: channel.name,
+      rate: baseRate + (index * 200) + (dateIndex * 50),
+      bookings: Math.round((baseRate / 100) * channel.bookingMultiplier),
+      commission: channel.commission,
+      lastBooking: new Date(Date.now() - Math.random() * 86400000 * 7)
+    }));
+  };
+
+  // Duplicate function completely removed - using the one defined above
+
   // Enhanced Rich Tooltip Component - Microsoft Word Style
   const RichTooltip = ({ tooltip }: { tooltip: typeof richTooltip }) => {
     if (!tooltip) return null;
@@ -1714,7 +1810,7 @@ export default function RevenuePage() {
           case 'inventory_analysis':
             return Math.min(420, viewportWidth * 0.9); // Max 420px or 90% viewport
           case 'competitor':
-            return Math.min(350, viewportWidth * 0.85); // Max 350px or 85% viewport
+            return Math.min(640, viewportWidth * 0.9); // Max 640px or 90% viewport for channel breakdown
           case 'ai':
             return Math.min(380, viewportWidth * 0.85); // Max 380px or 85% viewport
           case 'event':
@@ -1865,106 +1961,7 @@ export default function RevenuePage() {
             onDismiss={handleDismissInsight}
           />
         case 'competitor':
-          const competitorData = tooltip.data;
-          const currentPrice = competitorData.currentPrice || 0;
-          return (
-            <div className="space-y-3">
-              {/* Compact Header */}
-              <div className="flex items-center gap-2 pb-2 border-b border-gray-200/20">
-                <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-cyan-600 rounded-md flex items-center justify-center flex-shrink-0">
-                  <TrendingUp className="w-3 h-3 text-white" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-xs font-semibold text-white">Competitor Analysis</h3>
-                  <p className="text-xs text-gray-400">vs ₹{currentPrice.toLocaleString()}</p>
-                </div>
-              </div>
-
-              {/* Compact Market Position */}
-              <div className="bg-white/5 backdrop-blur-sm rounded-lg p-2 border border-white/10">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-400">Position:</span>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    competitorData.marketPosition === 'premium' ? 'bg-emerald-500/20 text-emerald-300' :
-                    competitorData.marketPosition === 'competitive' ? 'bg-yellow-500/20 text-yellow-300' :
-                    'bg-red-500/20 text-red-300'
-                  }`}>
-                    {competitorData.marketPosition === 'premium' ? '🏆 PREMIUM' :
-                     competitorData.marketPosition === 'competitive' ? '⚡ COMPETITIVE' : '💰 VALUE'}
-                  </span>
-                </div>
-                
-                {/* Compact Metrics */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/5 rounded p-1.5 text-center">
-                    <div className="text-xs text-gray-400">Avg Rate</div>
-                    <div className="text-cyan-400 font-semibold text-sm">₹{(competitorData.averageRate || 0).toLocaleString()}</div>
-                  </div>
-                  <div className="bg-white/5 rounded p-1.5 text-center">
-                    <div className="text-xs text-gray-400">Advantage</div>
-                    <div className={`font-semibold text-sm ${
-                      (competitorData.priceAdvantage || 0) > 0 ? 'text-emerald-400' : 'text-red-400'
-                    }`}>
-                      {(competitorData.priceAdvantage || 0) > 0 ? '+' : ''}{competitorData.priceAdvantage || 0}%
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Top 3 Competitors Only */}
-              {competitorData.competitors && (
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-1 mb-1">
-                    <div className="w-1 h-1 bg-cyan-400 rounded-full"></div>
-                    <span className="text-xs font-medium text-cyan-300">Top Competitors</span>
-                  </div>
-                  
-                  {competitorData.competitors.slice(0, 3).map((competitor: any, index: number) => (
-                    <div key={index} className="bg-white/5 rounded-lg p-2 border border-white/10">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                          <div className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                            competitor.trend === 'up' ? 'bg-emerald-500' :
-                            competitor.trend === 'down' ? 'bg-red-500' : 'bg-yellow-500'
-                          }`}></div>
-                          <span className="text-white text-xs font-medium truncate">{competitor.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="text-cyan-400 font-bold text-sm">₹{competitor.rate.toLocaleString()}</span>
-                          <span className={`text-xs ${
-                            competitor.rate > currentPrice ? 'text-red-400' : 
-                            competitor.rate < currentPrice ? 'text-emerald-400' : 'text-yellow-400'
-                          }`}>
-                            {competitor.rate > currentPrice ? '+' : competitor.rate < currentPrice ? '-' : '='}
-                            ₹{Math.abs(competitor.rate - currentPrice).toLocaleString()}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div className="grid grid-cols-3 gap-1 mt-1 text-xs">
-                        <div className="text-center">
-                          <div className={`font-medium ${competitor.availability > 50 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {competitor.availability}%
-                          </div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-blue-400 font-medium">{competitor.distance}km</div>
-                        </div>
-                        <div className="text-center">
-                          <div className="text-purple-400 font-medium">{competitor.rating}★</div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Compact Footer */}
-              <div className="pt-2 border-t border-gray-200/20 text-center">
-                <span className="text-xs text-gray-400">Updated 2m ago</span>
-              </div>
-            </div>
-          );
+          return <CompetitorTooltipContent data={tooltip.data} />;
 
         case 'inventory_analysis':
           const inventoryData = tooltip.data;
@@ -2356,20 +2353,61 @@ export default function RevenuePage() {
             isActive: true,
             competitorIndicator: (i % 3 === 0) ? 'competitive' : 'higher',
             eventImpact: i === 5 ? sampleEvents[0] : undefined,
-            competitorData: {
-              competitors: [
-                { name: 'Paradise Resort', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 2.1, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'Azure Waters Hotel', rate: 5900 + (i * 85), availability: 78 + (i % 15), distance: 3.5, rating: 3.9, trend: 'down' },
-                { name: 'Coral Bay Resort', rate: 6800 + (i * 110), availability: 45 + (i % 25), distance: 5.2, rating: 4.0, trend: 'stable' },
-                { name: 'Sunset Villa Resort', rate: 7200 + (i * 120), availability: 30 + (i % 30), distance: 7.8, rating: 4.5, trend: 'up' }
-              ],
-              marketPosition: 'competitive' as const,
-              averageRate: Math.round((6200 + (i * 95) + 5900 + (i * 85) + 6800 + (i * 110) + 7200 + (i * 120)) / 4),
-              lowestRate: Math.min(6200 + (i * 95), 5900 + (i * 85), 6800 + (i * 110), 7200 + (i * 120)),
-              highestRate: Math.max(6200 + (i * 95), 5900 + (i * 85), 6800 + (i * 110), 7200 + (i * 120)),
-              priceAdvantage: Math.round(((6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0)) - Math.round((6200 + (i * 95) + 5900 + (i * 85) + 6800 + (i * 110) + 7200 + (i * 120)) / 4)) / Math.round((6200 + (i * 95) + 5900 + (i * 85) + 6800 + (i * 110) + 7200 + (i * 120)) / 4) * 100),
-              marketShare: 23 + (i % 8)
-            },
+            competitorData: (() => {
+              const baseRate = 6500 + (i * 100) + (dates[i]?.isWeekend ? 800 : 0);
+              const competitors = [
+                { 
+                  name: 'Paradise Resort', 
+                  rate: 8200 + (i * 140), 
+                  availability: 65 + (i % 20), 
+                  distance: 2.1, 
+                  rating: 4.2, 
+                  trend: i % 3 === 0 ? 'up' as const : 'stable' as const,
+                  channels: generateChannelData(8200 + (i * 140), 'Paradise Resort', i)
+                },
+                { 
+                  name: 'Azure Waters Hotel', 
+                  rate: 5900 + (i * 85), 
+                  availability: 78 + (i % 15), 
+                  distance: 3.5, 
+                  rating: 3.9, 
+                  trend: 'down' as const,
+                  channels: generateChannelData(5900 + (i * 85), 'Azure Waters Hotel', i)
+                },
+                { 
+                  name: 'Coral Bay Resort', 
+                  rate: 6800 + (i * 110), 
+                  availability: 45 + (i % 25), 
+                  distance: 5.2, 
+                  rating: 4.0, 
+                  trend: 'stable' as const,
+                  channels: generateChannelData(6800 + (i * 110), 'Coral Bay Resort', i)
+                },
+                { 
+                  name: 'Sunset Villa Resort', 
+                  rate: 7200 + (i * 120), 
+                  availability: 30 + (i % 30), 
+                  distance: 7.8, 
+                  rating: 4.5, 
+                  trend: 'up' as const,
+                  channels: generateChannelData(7200 + (i * 120), 'Sunset Villa Resort', i)
+                }
+              ];
+              const rates = competitors.map(c => c.rate);
+              const ownChannels = generateOwnChannelData(baseRate, i);
+              
+              return {
+                competitors,
+                marketPosition: 'competitive' as const,
+                averageRate: Math.round(rates.reduce((sum, rate) => sum + rate, 0) / rates.length),
+                lowestRate: Math.min(...rates),
+                highestRate: Math.max(...rates),
+                priceAdvantage: Math.round(((baseRate - rates.reduce((sum, rate) => sum + rate, 0) / rates.length) / (rates.reduce((sum, rate) => sum + rate, 0) / rates.length)) * 100),
+                marketShare: 23 + (i % 8),
+                ownChannels,
+                channelComparison: generateChannelComparison(ownChannels, competitors)
+              };
+            })(),
           }))
         },
         {
@@ -2386,20 +2424,61 @@ export default function RevenuePage() {
             confidenceScore: 92,
             isActive: true,
             competitorIndicator: (i % 4 === 0) ? 'higher' : (i % 4 === 1) ? 'competitive' : 'lower',
-            competitorData: {
-              competitors: [
-                { name: 'Paradise Resort', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 2.1, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'Azure Waters Hotel', rate: 5200 + (i * 70), availability: 80 + (i % 15), distance: 3.5, rating: 3.9, trend: 'down' },
-                { name: 'Coral Bay Resort', rate: 6000 + (i * 85), availability: 50 + (i % 20), distance: 5.2, rating: 4.0, trend: 'stable' },
-                { name: 'Sunset Villa Resort', rate: 6400 + (i * 95), availability: 35 + (i % 25), distance: 7.8, rating: 4.5, trend: 'up' }
-              ],
-              marketPosition: (i % 3 === 0) ? 'premium' : (i % 3 === 1) ? 'competitive' : 'value',
-              averageRate: Math.round((5500 + (i * 75) + 5200 + (i * 70) + 6000 + (i * 85) + 6400 + (i * 95)) / 4),
-              lowestRate: Math.min(5500 + (i * 75), 5200 + (i * 70), 6000 + (i * 85), 6400 + (i * 95)),
-              highestRate: Math.max(5500 + (i * 75), 5200 + (i * 70), 6000 + (i * 85), 6400 + (i * 95)),
-              priceAdvantage: Math.round(((5800 + (i * 80) + (dates[i]?.isWeekend ? 600 : 0)) - Math.round((5500 + (i * 75) + 5200 + (i * 70) + 6000 + (i * 85) + 6400 + (i * 95)) / 4)) / Math.round((5500 + (i * 75) + 5200 + (i * 70) + 6000 + (i * 85) + 6400 + (i * 95)) / 4) * 100),
-              marketShare: 20 + (i % 12)
-            }
+            competitorData: (() => {
+              const baseRate = 5800 + (i * 80) + (dates[i]?.isWeekend ? 600 : 0);
+              const competitors = [
+                { 
+                  name: 'Paradise Resort', 
+                  rate: 8200 + (i * 140), 
+                  availability: 65 + (i % 20), 
+                  distance: 2.1, 
+                  rating: 4.2, 
+                  trend: i % 3 === 0 ? 'up' as const : 'stable' as const,
+                  channels: generateChannelData(8200 + (i * 140), 'Paradise Resort', i)
+                },
+                { 
+                  name: 'Azure Waters Hotel', 
+                  rate: 5200 + (i * 70), 
+                  availability: 80 + (i % 15), 
+                  distance: 3.5, 
+                  rating: 3.9, 
+                  trend: 'down' as const,
+                  channels: generateChannelData(5200 + (i * 70), 'Azure Waters Hotel', i)
+                },
+                { 
+                  name: 'Coral Bay Resort', 
+                  rate: 6000 + (i * 85), 
+                  availability: 50 + (i % 20), 
+                  distance: 5.2, 
+                  rating: 4.0, 
+                  trend: 'stable' as const,
+                  channels: generateChannelData(6000 + (i * 85), 'Coral Bay Resort', i)
+                },
+                { 
+                  name: 'Sunset Villa Resort', 
+                  rate: 6400 + (i * 95), 
+                  availability: 35 + (i % 25), 
+                  distance: 7.8, 
+                  rating: 4.5, 
+                  trend: 'up' as const,
+                  channels: generateChannelData(6400 + (i * 95), 'Sunset Villa Resort', i)
+                }
+              ];
+              const rates = competitors.map(c => c.rate);
+              const ownChannels = generateOwnChannelData(baseRate, i);
+              
+              return {
+                competitors,
+                marketPosition: (i % 3 === 0) ? 'premium' as const : (i % 3 === 1) ? 'competitive' as const : 'value' as const,
+                averageRate: Math.round(rates.reduce((sum, rate) => sum + rate, 0) / rates.length),
+                lowestRate: Math.min(...rates),
+                highestRate: Math.max(...rates),
+                priceAdvantage: Math.round(((baseRate - rates.reduce((sum, rate) => sum + rate, 0) / rates.length) / (rates.reduce((sum, rate) => sum + rate, 0) / rates.length)) * 100),
+                marketShare: 20 + (i % 12),
+                ownChannels,
+                channelComparison: generateChannelComparison(ownChannels, competitors)
+              };
+            })()
           }))
         },
         {
@@ -2446,20 +2525,61 @@ export default function RevenuePage() {
             isActive: true,
             competitorIndicator: (i % 3 === 0) ? 'competitive' : 'higher', // Deterministic pattern
             eventImpact: i === 7 ? sampleEvents[0] : undefined,
-            competitorData: {
-              competitors: [
-                { name: 'Paradise Resort', rate: 8200 + (i * 140), availability: 65 + (i % 20), distance: 2.1, rating: 4.2, trend: i % 3 === 0 ? 'up' : 'stable' },
-                { name: 'Azure Waters Hotel', rate: 7800 + (i * 130), availability: 78 + (i % 15), distance: 3.5, rating: 3.9, trend: 'down' },
-                { name: 'Coral Bay Resort', rate: 9000 + (i * 160), availability: 45 + (i % 25), distance: 5.2, rating: 4.0, trend: 'stable' },
-                { name: 'Sunset Villa Resort', rate: 9500 + (i * 180), availability: 30 + (i % 30), distance: 7.8, rating: 4.5, trend: 'up' }
-              ],
-              marketPosition: 'competitive' as const,
-              averageRate: Math.round((8200 + (i * 140) + 7800 + (i * 130) + 9000 + (i * 160) + 9500 + (i * 180)) / 4),
-              lowestRate: Math.min(8200 + (i * 140), 7800 + (i * 130), 9000 + (i * 160), 9500 + (i * 180)),
-              highestRate: Math.max(8200 + (i * 140), 7800 + (i * 130), 9000 + (i * 160), 9500 + (i * 180)),
-              priceAdvantage: Math.round(((8500 + (i * 150) + (dates[i]?.isWeekend ? 1000 : 0)) - (8200 + (i * 140) + 7800 + (i * 130) + 9000 + (i * 160) + 9500 + (i * 180)) / 4) / ((8200 + (i * 140) + 7800 + (i * 130) + 9000 + (i * 160) + 9500 + (i * 180)) / 4) * 100),
-              marketShare: 23 + (i % 8)
-            },
+            competitorData: (() => {
+              const baseRate = 8500 + (i * 150) + (dates[i]?.isWeekend ? 1000 : 0);
+              const competitors = [
+                { 
+                  name: 'Paradise Resort', 
+                  rate: 8200 + (i * 140), 
+                  availability: 65 + (i % 20), 
+                  distance: 2.1, 
+                  rating: 4.2, 
+                  trend: i % 3 === 0 ? 'up' as const : 'stable' as const,
+                  channels: generateChannelData(8200 + (i * 140), 'Paradise Resort', i)
+                },
+                { 
+                  name: 'Azure Waters Hotel', 
+                  rate: 7800 + (i * 130), 
+                  availability: 78 + (i % 15), 
+                  distance: 3.5, 
+                  rating: 3.9, 
+                  trend: 'down' as const,
+                  channels: generateChannelData(7800 + (i * 130), 'Azure Waters Hotel', i)
+                },
+                { 
+                  name: 'Coral Bay Resort', 
+                  rate: 9000 + (i * 160), 
+                  availability: 45 + (i % 25), 
+                  distance: 5.2, 
+                  rating: 4.0, 
+                  trend: 'stable' as const,
+                  channels: generateChannelData(9000 + (i * 160), 'Coral Bay Resort', i)
+                },
+                { 
+                  name: 'Sunset Villa Resort', 
+                  rate: 9500 + (i * 180), 
+                  availability: 30 + (i % 30), 
+                  distance: 7.8, 
+                  rating: 4.5, 
+                  trend: 'up' as const,
+                  channels: generateChannelData(9500 + (i * 180), 'Sunset Villa Resort', i)
+                }
+              ];
+              const rates = competitors.map(c => c.rate);
+              const ownChannels = generateOwnChannelData(baseRate, i);
+              
+              return {
+                competitors,
+                marketPosition: 'competitive' as const,
+                averageRate: Math.round(rates.reduce((sum, rate) => sum + rate, 0) / rates.length),
+                lowestRate: Math.min(...rates),
+                highestRate: Math.max(...rates),
+                priceAdvantage: Math.round(((baseRate - rates.reduce((sum, rate) => sum + rate, 0) / rates.length) / (rates.reduce((sum, rate) => sum + rate, 0) / rates.length)) * 100),
+                marketShare: 23 + (i % 8),
+                ownChannels,
+                channelComparison: generateChannelComparison(ownChannels, competitors)
+              };
+            })(),
           }))
         },
         {
@@ -3618,6 +3738,26 @@ export default function RevenuePage() {
     
     // Other restrictions get colored borders
     return `restriction-cell border-${restrictionType.color}-300 dark:border-${restrictionType.color}-700 bg-${restrictionType.color}-50 dark:bg-${restrictionType.color}-900/20`;
+  };
+
+  // Helper function to calculate competitive price difference
+  const getCompetitivePriceDifference = (data: any) => {
+    if (!data.competitorData || !data.competitorData.competitors) return null;
+    
+    const competitorRates = data.competitorData.competitors.map((c: any) => c.rate);
+    if (competitorRates.length === 0) return null;
+    
+    const avgCompetitorRate = competitorRates.reduce((sum: number, rate: number) => sum + rate, 0) / competitorRates.length;
+    const userRate = data.rate;
+    
+    const percentDifference = ((userRate - avgCompetitorRate) / avgCompetitorRate) * 100;
+    
+    return {
+      percentage: Math.abs(percentDifference),
+      isHigher: percentDifference > 0,
+      isLower: percentDifference < 0,
+      avgCompetitorRate
+    };
   };
 
   const getRestrictionTooltipData = (roomTypeName: string, productType: string, dateStr: string) => {
@@ -5296,13 +5436,14 @@ export default function RevenuePage() {
   return (
     <div className={`min-h-screen transition-all duration-300 ${isDark ? 'dark' : ''}`}>
       {/* Integrated Header with Property & Competitor Selectors */}
-      <IntegratedHeader 
+            <IntegratedHeader 
         isDark={isDark}
         onToggleDarkMode={toggleDarkMode}
         inlineEdit={inlineEdit}
         onPropertyChange={handlePropertyChange}
         onCompetitorsChange={handleCompetitorsChange}
-            />
+
+      />
 
       {/* Filter Chips - Shows active filters */}
       <FilterChips
@@ -5606,10 +5747,6 @@ export default function RevenuePage() {
                           onDoubleClick={(e) => handleInventoryDoubleClick(roomType.id, dateIndex, inv.inventory, e)}
                         >
                           <div className="flex flex-col items-center justify-center h-full p-3">
-                            {/* Change Indicator */}
-                            {inv.isChanged && (
-                              <div className="absolute top-1 left-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                            )}
                             
                             {/* Inline Edit Input or Display */}
                             {inlineEdit?.type === 'inventory' && 
@@ -5638,29 +5775,42 @@ export default function RevenuePage() {
                               </div>
                             ) : (
                               <>
-                                {/* Large, Clear Number */}
-                                <div className={`text-2xl font-bold mb-1 ${
+                                {/* PRIMARY DATA - Inventory Number */}
+                                <div className={`text-2xl font-bold text-center ${
                                   inv.isChanged ? 'text-orange-600 dark:text-orange-400' : 'text-blue-900 dark:text-blue-100'
                                 }`}>
                                   {inv.inventory}
                                 </div>
                                 
-                                {/* Change Value Indicator */}
-                                {inv.isChanged && inv.originalInventory !== undefined && (
-                                  <div className="absolute bottom-1 right-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                                    {inv.originalInventory} → {inv.inventory}
-                                    {inv.eventImpact && (
-                                      <div className="w-1 h-1 bg-yellow-500 rounded-full inline-block ml-1" title="Event Impact"></div>
-                                    )}
+                                {/* CORNER INDICATORS - Consistent with Pricing */}
+                                
+                                {/* Top-Left: Change Indicator */}
+                                                                  {inv.isChanged && (
+                                  <div className="absolute top-0.5 left-0.5 text-[10px] text-orange-600 dark:text-orange-400 font-medium bg-orange-100 dark:bg-orange-900/40 px-1 py-0.5 rounded-sm shadow-sm border border-orange-200 dark:border-orange-700">
+                                    <ArrowUp className="w-3 h-3 inline mr-0.5" />
+                                    Changed
                                   </div>
                                 )}
-
-                                {/* Smart Status Indicator - Enhanced */}
-                                <div className="flex items-center justify-center gap-2">
-                                  {/* Restriction Indicator - Inline */}
+                                
+                                {/* Top-Right: Quick Edit Hint (on hover) */}
+                                <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                  <div className="p-1 bg-blue-50 dark:bg-blue-900/30 rounded-sm">
+                                    <Edit3 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                  </div>
+                                </div>
+                                
+                                {/* Bottom-Left: Status Indicators */}
+                                <div className="absolute bottom-0.5 left-0.5 flex items-center gap-1">
+                                  {/* Restriction Indicator */}
                                   {inv.restrictions && inv.restrictions.length > 0 && (
-                                    <Lock className="w-3 h-3 text-orange-500 opacity-80 hover:opacity-100 transition-opacity duration-200" />
+                                    <div className="cursor-pointer">
+                                      <Lock className="w-3 h-3 text-orange-600 dark:text-orange-400 hover:text-orange-500 dark:hover:text-orange-300 transition-colors" />
+                                    </div>
                                   )}
+                                </div>
+                                
+                                {/* Bottom-Right: Inventory Status */}
+                                <div className="absolute bottom-0.5 right-0.5">
                                   {(() => {
                                     const smartStatus = calculateSmartInventoryStatus(
                                       inv.inventory, 
@@ -5670,52 +5820,39 @@ export default function RevenuePage() {
                                     );
                                     
                                     return (
-                                      <>
-                                        <div 
-                                          className="cursor-pointer"
-                                          onMouseEnter={(e) => showRichTooltip('inventory_analysis', { 
-                                            status: smartStatus,
-                                            inventory: inv.inventory,
-                                            roomType: roomType.name
-                                          }, e)}
-                                          onMouseLeave={hideRichTooltip}
-                                        >
-                                          <span className={`text-[10px] px-1 py-0.5 font-medium rounded-full ${
-                                            smartStatus.level === 'critical' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                                            smartStatus.level === 'low' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 hidden' :
-                                            smartStatus.level === 'optimal' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
-                                            smartStatus.level === 'oversupply' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
-                                            'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400'
-                                          }`}>
-                                            <InventoryStatusIconInline status={smartStatus} inventory={inv.inventory} onMouseEnter={(e, tooltipData) => showRichTooltip("inventory_analysis", { status: smartStatus, inventory: inv.inventory, roomType: roomType.name }, e)} onMouseLeave={hideRichTooltip} />
-                                          </span>
-                                          {smartStatus.urgency === 'immediate' && (
-                                            <div className="w-1 h-1 bg-red-500 rounded-full animate-ping absolute -top-1 -right-1"></div>
-                                          )}
+                                      <div 
+                                        className="cursor-pointer transition-colors"
+                                        onMouseEnter={(e) => showRichTooltip('inventory_analysis', { 
+                                          status: smartStatus,
+                                          inventory: inv.inventory,
+                                          roomType: roomType.name
+                                        }, e)}
+                                        onMouseLeave={hideRichTooltip}
+                                      >
+                                        <div className={`text-[10px] font-medium ${
+                                          smartStatus.level === 'critical' ? 'text-red-600 dark:text-red-400' :
+                                          smartStatus.level === 'low' ? 'text-orange-600 dark:text-orange-400' :
+                                          smartStatus.level === 'optimal' ? 'text-green-600 dark:text-green-400' :
+                                          smartStatus.level === 'oversupply' ? 'text-blue-600 dark:text-blue-400' :
+                                          'text-purple-600 dark:text-purple-400'
+                                        } hover:opacity-80 transition-opacity`}>
+                                          <InventoryStatusIconInline status={smartStatus} inventory={inv.inventory} onMouseEnter={(e, tooltipData) => showRichTooltip("inventory_analysis", { status: smartStatus, inventory: inv.inventory, roomType: roomType.name }, e)} onMouseLeave={hideRichTooltip} />
                                         </div>
-                                      </>
+                                        {smartStatus.urgency === 'immediate' && (
+                                          <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                                        )}
+                                      </div>
                                     );
                                   })()}
                                 </div>
                               </>
                             )}
                             
-                            {/* Edit Indicators */}
+                            {/* Clean Hover Overlay */}
                             {!(inlineEdit?.type === 'inventory' && 
                                inlineEdit.roomId === roomType.id && 
                                inlineEdit.dateIndex === dateIndex) && (
-                              <>
-                                {/* Subtle Edit Indicator on Hover */}
-                                <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                  <Edit3 className="w-3 h-3 text-blue-500" />
-                                </div>
-                                
-                                
-                                {/* Double-click hint */}
-                                <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
-                                  <span className="text-xs text-blue-500 font-medium">2x</span>
-                                </div>
-                              </>
+                              <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded" />
                             )}
                           </div>
                         </div>
@@ -5747,10 +5884,6 @@ export default function RevenuePage() {
                             onDoubleClick={(e) => handleCellDoubleClick(roomType.id, product.id, dateIndex, data.rate, e)}
                           >
                             <div className="text-center p-2">
-                              {/* Change Indicator */}
-                              {data.isChanged && (
-                                <div className="absolute top-1 left-1 w-2 h-2 bg-orange-500 rounded-full animate-pulse" />
-                              )}
                               
                               {/* Inline Edit Input or Display */}
                               {inlineEdit?.type === 'price' && 
@@ -5781,44 +5914,32 @@ export default function RevenuePage() {
                                 </div>
                               ) : (
                                 <>
-                                  {/* Enhanced Price Display with Competitor Icon */}
-                                  <div className={`font-bold mb-1 ${
+                                  {/* PRIMARY DATA - Always Prominent and Unobstructed */}
+                                  <div className={`text-lg font-bold text-center ${
                                     data.isChanged ? 'text-orange-600 dark:text-orange-400' : 'text-gray-900 dark:text-white'
                                   }`}>
                                     ₹{data.rate.toLocaleString()}
                                   </div>
                                   
-                                  {/* Change Value Indicator */}
-                                  {data.isChanged && data.originalRate !== undefined && (
-                                    <div className="absolute bottom-1 right-1 text-xs text-orange-600 dark:text-orange-400 font-medium">
-                                      ₹{data.originalRate.toLocaleString()} → ₹{data.rate.toLocaleString()}
-                                      {data.eventImpact && (
-                                        <div className="w-1 h-1 bg-yellow-500 rounded-full inline-block ml-1" title="Event Impact"></div>
-                                      )}
+                                  {/* CORNER INDICATORS - Strategic Positioning */}
+                                  
+                                  {/* Top-Left: Change Indicator */}
+                                  {data.isChanged && (
+                                    <div className="absolute top-0.5 left-0.5 text-[10px] text-orange-600 dark:text-orange-400 font-medium bg-orange-100 dark:bg-orange-900/40 px-1 py-0.5 rounded-sm shadow-sm border border-orange-200 dark:border-orange-700">
+                                      <ArrowUp className="w-3 h-3 inline mr-0.5" />
+                                      Changed
                                     </div>
                                   )}
                                   
-                                  {/* Competitor Position Indicator */}
-                                  {data.competitorData && data.competitorIndicator && (
-                                    <div className="absolute top-1 right-1 group/competitor">
-                                      <div className={`flex items-center gap-1 px-1 py-0.5 rounded-full transition-all duration-200 ${
-                                        data.competitorIndicator === 'higher' 
-                                          ? 'bg-emerald-100 dark:bg-emerald-900/30 group-hover/competitor:bg-emerald-200 dark:group-hover/competitor:bg-emerald-900/50' :
-                                        data.competitorIndicator === 'competitive' 
-                                          ? 'bg-yellow-100 dark:bg-yellow-900/30 group-hover/competitor:bg-yellow-200 dark:group-hover/competitor:bg-yellow-900/50' :
-                                          'bg-red-100 dark:bg-red-900/30 group-hover/competitor:bg-red-200 dark:group-hover/competitor:bg-red-900/50'
-                                      }`}>
-                                        <div className={`w-2 h-2 rounded-full ${
-                                          data.competitorIndicator === 'higher' ? 'bg-emerald-500' :
-                                          data.competitorIndicator === 'competitive' ? 'bg-yellow-500' :
-                                          'bg-red-500'
-                                        }`}></div>
-                                      </div>
+                                  {/* Top-Right: Quick Edit Hint (on hover) */}
+                                  <div className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                                    <div className="p-1 bg-blue-50 dark:bg-blue-900/30 rounded-sm">
+                                      <Edit3 className="w-3 h-3 text-blue-600 dark:text-blue-400" />
                                     </div>
-                                  )}
-
-                                  {/* Other Indicators Row */}
-                                  <div className="flex items-center justify-center gap-1 mb-1">
+                                  </div>
+                                  
+                                  {/* Bottom-Left: Status Indicators */}
+                                  <div className="absolute bottom-0.5 left-0.5 flex items-center gap-1">
                                     {(() => {
                                       // Get actual bulk restrictions for this cell
                                       const dateStr = dates[dateIndex].dateStr;
@@ -5826,126 +5947,98 @@ export default function RevenuePage() {
                                       
                                       return restrictionData && restrictionData.count > 0 && (
                                         <div 
-                                          className="tooltip-icon-area"
+                                          className="tooltip-icon-area cursor-pointer"
                                           onMouseEnter={(e) => {
                                             console.log('🖱️ Hovering on restriction icon:', restrictionData);
                                             showRichTooltip('general', restrictionData, e);
                                           }}
                                           onMouseLeave={handleTooltipMouseLeave}
+                                          title={`${restrictionData.count} restriction(s)`}
                                         >
-                                          <Lock className="w-3 h-3 text-orange-500 tooltip-icon" />
+                                          <Lock className="w-3 h-3 text-orange-600 dark:text-orange-400 hover:text-orange-500 dark:hover:text-orange-300 transition-colors" />
                                         </div>
                                       );
                                     })()}
                                     
-                                    {data.aiInsights && data.aiInsights.length > 0 && !data.aiInsights.some(insight => insight.agentCapabilities?.canAutoExecute) && (
-                                      <div 
-                                        className="tooltip-icon-area"
-                                        onMouseEnter={(e) => showRichTooltip('ai', { insights: data.aiInsights, currentRate: data.rate }, e)}
-                                        onMouseLeave={handleTooltipMouseLeave}
-                                      >
-                                        <Brain className="w-3 h-3 text-blue-500 tooltip-icon" />
-                                      </div>
-                                    )}
-                                    
-                                    {/* Auto Pricing Agent Indicator */}
-                                    {data.aiInsights && data.aiInsights.some(insight => insight.agentCapabilities?.canAutoExecute) && (
-                                      <div 
-                                        className="tooltip-icon-area"
-                                        onMouseEnter={(e) => {
-                                          const autoExecuteInsight = data.aiInsights.find(insight => insight.agentCapabilities?.canAutoExecute);
-                                          if (autoExecuteInsight) {
-                                            // Clear any existing hide timeout
-                                            if (tooltipTimeout) {
-                                              clearTimeout(tooltipTimeout);
-                                              setTooltipTimeout(null);
-                                            }
-                                            
-                                            const target = e.currentTarget as HTMLElement;
-                                            const rect = target.getBoundingClientRect();
-                                            
-                                            // Show enhanced auto agent tooltip
-                                            const showTimeout = setTimeout(() => {
-                                              setAutoAgentTooltip({
-                                                insights: [autoExecuteInsight],
-                                                currentRate: data.rate,
-                                                position: {
-                                                  x: rect.right,
-                                                  y: rect.top + (rect.height / 2)
-                                                }
-                                              });
-                                            }, 50); // Reduced from 150ms to 50ms for better responsiveness
-                                            
-                                            setTooltipTimeout(showTimeout);
-                                          }
-                                        }}
-                                        onMouseLeave={() => {
-                                          // Add delay before hiding to allow users to move to tooltip
-                                          if (tooltipTimeout) {
-                                            clearTimeout(tooltipTimeout);
-                                            setTooltipTimeout(null);
-                                          }
-                                          
-                                          const hideTimeout = setTimeout(() => {
-                                            setAutoAgentTooltip(null);
-                                          }, 300);
-                                          
-                                          setTooltipTimeout(hideTimeout);
-                                        }}
-                                        onMouseLeave={handleTooltipMouseLeave}
-                                      >
-                                        <div className="relative">
-                                          <Zap className="w-3 h-3 text-green-500 tooltip-icon" />
-                                          {/* Auto-execute status indicator */}
-                                          <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                                        </div>
-                                      </div>
-                                    )}
-                                    
-                                    {data.competitorData && (
-                                      <div 
-                                        className="tooltip-icon-area"
-                                        onMouseEnter={(e) => showRichTooltip('competitor', { ...data.competitorData, currentPrice: data.rate }, e)}
-                                        onMouseLeave={handleTooltipMouseLeave}
-                                      >
-                                        <Users className="w-3 h-3 text-purple-500 tooltip-icon" />
-                                      </div>
-                                    )}
-                                    
-                                    {dates[dateIndex]?.events.length > 0 && (
-                                      <div 
-                                        className="tooltip-icon-area"
-                                        onMouseEnter={(e) => showRichTooltip('event', dates[dateIndex].events, e)}
-                                        onMouseLeave={handleTooltipMouseLeave}
-                                      >
-                                        <CalendarIcon className="w-3 h-3 text-orange-500" />
-                                      </div>
-                                    )}
+
                                   </div>
+                                  
+                                  {/* Bottom-Right: Competitor Analysis - Always visible when data exists */}
+                                  {data.competitorData && data.competitorData.competitors && data.competitorData.competitors.length > 0 && (
+                                    <div className="absolute bottom-0.5 right-0.5">
+                                      {(() => {
+                                        const priceDiff = getCompetitivePriceDifference(data);
+                                        const isParity = !priceDiff || priceDiff.percentage < 3;
+                                        
+                                        return (
+                                          <div 
+                                            className="flex items-center gap-0.5 px-1 py-0.5 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-sm border border-slate-200 dark:border-slate-600 rounded-sm shadow-sm cursor-pointer hover:shadow-md hover:bg-slate-100 dark:hover:bg-slate-700 transition-all duration-200"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const currentDateStr = dates[dateIndex]?.dateStr || new Date().toISOString().split('T')[0];
+                                              // Transform ownChannels to match drawer's expected structure
+                                              const transformedUserChannels = data.competitorData?.ownChannels?.map((ch: any) => ({
+                                                channel: ch.channel || ch.name || 'Unknown',
+                                                rate: ch.rate || 0,
+                                                availability: ch.availability || Math.max(5, Math.round(75 + Math.random() * 25)),
+                                                commission: ch.commission || 0,
+                                                revenue: ch.revenue || Math.round(5000 + Math.random() * 15000),
+                                                bookings: ch.bookings || 0,
+                                                isActive: ch.isActive !== undefined ? ch.isActive : true,
+                                                lastUpdated: ch.lastUpdated || ch.lastBooking || new Date()
+                                              })) || [];
+                                              setCompetitorDrawerData({
+                                                competitors: data.competitorData?.competitors || [],
+                                                userChannels: transformedUserChannels,
+                                                currentDate: currentDateStr,
+                                                roomType: roomType.name,
+                                                currentPrice: data.rate
+                                              });
+                                              setIsCompetitorDrawerOpen(true);
+                                            }}
+                                            title={isParity 
+                                              ? `Competitor Analysis: At market parity (within 3% of average)`
+                                              : `Competitor Analysis: ${priceDiff.isHigher ? 'Above' : 'Below'} market average by ${priceDiff.percentage.toFixed(1)}%`
+                                            }
+                                          >
+                                            <UsersIcon className="w-3 h-3 text-slate-600 dark:text-slate-400" />
+                                            {isParity ? (
+                                              <>
+                                                <Minus className="w-3 h-3 text-yellow-600 dark:text-yellow-400" />
+                                                <span className="text-[10px] font-bold leading-none text-yellow-600 dark:text-yellow-400">
+                                                  PARITY
+                                                </span>
+                                              </>
+                                            ) : (
+                                              <>
+                                                {priceDiff.isHigher ? (
+                                                  <TrendingUp className="w-3 h-3 text-green-600 dark:text-green-400" />
+                                                ) : (
+                                                  <TrendingDown className="w-3 h-3 text-red-600 dark:text-red-400" />
+                                                )}
+                                                <span className={`text-[10px] font-bold leading-none ${
+                                                  priceDiff.isHigher ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+                                                }`}>
+                                                  {priceDiff.percentage.toFixed(0)}%
+                                                </span>
+                                              </>
+                                            )}
+                                          </div>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
                                   
                                 </>
                               )}
                             </div>
                             
-                            {/* Enhanced Hover overlay and Edit Indicators */}
+                            {/* Clean Hover Overlay - Non-intrusive */}
                             {!(inlineEdit?.type === 'price' && 
                                inlineEdit.roomId === roomType.id && 
                                inlineEdit.productId === product.id && 
                                inlineEdit.dateIndex === dateIndex) && (
-                              <>
-                                {/* Hover overlay */}
-                                <div className="absolute inset-0 bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded" />
-                                
-                                {/* Edit indicators */}
-                                <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                                  <Edit3 className="w-3 h-3 text-blue-500" />
-                                </div>
-                                
-                                {/* Double-click hint */}
-                                <div className="absolute bottom-1 left-1 opacity-0 group-hover:opacity-60 transition-opacity duration-200">
-                                  <span className="text-xs text-blue-500 font-medium">2x</span>
-                                </div>
-                              </>
+                              <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none rounded" />
                             )}
                           </div>
                         ))}
@@ -6194,6 +6287,18 @@ export default function RevenuePage() {
           isLoading={isNewsLoading}
         />
 
+        {/* Enhanced Agentic AI Panel */}
+        <EnhancedAgenticAI 
+          isOpen={isEnhancedAgenticAIOpen}
+          onClose={() => setIsEnhancedAgenticAIOpen(false)}
+          insights={sampleInsights}
+          isDark={isDark}
+          onApplyInsight={handleApplyInsight}
+          onDismissInsight={handleDismissInsight}
+          onRefreshInsights={refreshNewsInsights}
+          isLoading={false}
+        />
+
         {/* Date Range Modal */}
         <DateRangeModal
           isOpen={isDateRangeModalOpen}
@@ -6245,6 +6350,24 @@ export default function RevenuePage() {
             {/* Tooltip */}
             <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
               Global AI Insights
+            </div>
+          </button>
+        </div>
+
+        {/* Competitive Analytics Button */}
+        <div className="fixed bottom-6 right-28 z-[9997]">
+          <button 
+            onClick={() => setIsCompetitiveAnalyticsOpen(true)}
+            className="group relative w-16 h-16 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300"
+          >
+            <BarChart3 className="w-8 h-8" />
+            
+            {/* Pulsing Ring Effect */}
+            <div className="absolute inset-0 rounded-full bg-gradient-to-r from-indigo-600 to-purple-600 opacity-75 animate-ping"></div>
+            
+            {/* Tooltip */}
+            <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+              Competitive Analytics
             </div>
           </button>
         </div>
@@ -6329,6 +6452,29 @@ ${insight.agentCapabilities?.canAutoExecute ? `
         <ColorLegend
           isOpen={isColorLegendOpen}
           onClose={() => setIsColorLegendOpen(false)}
+        />
+
+        {/* Competitor Side Drawer */}
+        {competitorDrawerData && (
+          <CompetitorSideDrawer
+            isOpen={isCompetitorDrawerOpen}
+            onClose={() => {
+              setIsCompetitorDrawerOpen(false);
+              setCompetitorDrawerData(null);
+            }}
+            competitors={competitorDrawerData.competitors}
+            userChannels={competitorDrawerData.userChannels}
+            currentDate={competitorDrawerData.currentDate}
+            roomType={competitorDrawerData.roomType}
+            currentPrice={competitorDrawerData.currentPrice}
+            onDateNavigate={handleCompetitorDateNavigate}
+          />
+        )}
+
+        {/* Competitive Analytics Drawer */}
+        <CompetitiveAnalyticsDrawer
+          isOpen={isCompetitiveAnalyticsOpen}
+          onClose={() => setIsCompetitiveAnalyticsOpen(false)}
         />
 
       </main>

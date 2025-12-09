@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown, Building, Target, Eye, EyeOff, Plus, Sun, Moon, User, Edit3 } from 'lucide-react';
+import { ChevronDown, Building, Target, Eye, EyeOff, Plus, Sun, Moon, User, Edit3, BarChart3 } from 'lucide-react';
+import Link from 'next/link';
 
 interface Property {
   id: string;
@@ -29,6 +30,7 @@ interface IntegratedHeaderProps {
   inlineEdit?: any;
   onPropertyChange?: (property: Property) => void;
   onCompetitorsChange?: (competitors: Competitor[]) => void;
+
 }
 
 const mockProperties: Property[] = [
@@ -109,7 +111,7 @@ export default function IntegratedHeader({
   onToggleDarkMode, 
   inlineEdit,
   onPropertyChange,
-  onCompetitorsChange 
+  onCompetitorsChange
 }: IntegratedHeaderProps) {
   const [selectedProperty, setSelectedProperty] = useState<Property>(mockProperties[0]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -352,6 +354,16 @@ export default function IntegratedHeader({
           </div>
           
           <div className="flex items-center gap-4">
+            {/* Competitive Intelligence Dashboard Link */}
+            <Link
+              href="/competitive-intelligence"
+              className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all duration-200 shadow-sm hover:shadow-md text-sm font-medium"
+              title="View Competitive Intelligence Dashboard"
+            >
+              <BarChart3 className="w-4 h-4" />
+              <span>Competitive Intelligence</span>
+            </Link>
+
             {/* Dark Mode Toggle */}
             <button
               onClick={onToggleDarkMode}

@@ -54,7 +54,7 @@ const nextConfig = {
   },
   eslint: {
     ignoreDuringBuilds: false,
-    dirs: ['pages', 'components', 'lib', 'hooks', 'utils'],
+    dirs: ['app', 'components', 'lib', 'hooks', 'utils'],
   },
   // Remove standalone output for better Vercel compatibility
   async redirects() {

@@ -746,13 +746,103 @@ export const MonthlyCalendarView: React.FC<MonthlyCalendarViewProps> = ({
               <div 
                 className="w-7 h-7 flex items-center justify-center bg-blue-100 dark:bg-blue-900/40 rounded-full shadow-md cursor-help transition-all duration-200 hover:scale-110 hover:shadow-lg border border-blue-200 dark:border-blue-700"
                 onMouseEnter={(e) => {
+                  // Helper function to generate channel-wise competitor data
+                  const generateChannelData = (baseRate: number, competitorName: string, dateIndex: number) => {
+                    const channels = ['direct', 'booking.com', 'expedia', 'agoda'];
+                    const rateVariations = [0.95, 1.05, 1.08, 1.02]; // Different rates for different channels
+                    
+                    return channels.map((channel, index) => ({
+                      channel,
+                      rate: Math.round(baseRate * rateVariations[index] + (dateIndex * 20) + (index * 50)),
+                      availability: Math.max(60 + (dateIndex % 25) + (index * 5), 15),
+                      commission: channel === 'direct' ? 0 : Math.round(15 + (index * 2.5)),
+                      lastUpdated: new Date(),
+                      isActive: Math.random() > 0.1 // 90% chance of being active
+                    }));
+                  };
+
+                  // Helper function to generate own channel data
+                  const generateOwnChannelData = (baseRate: number, dateIndex: number) => {
+                    const channels = [
+                      { name: 'direct', commission: 0, bookingMultiplier: 0.3 },
+                      { name: 'booking.com', commission: 18, bookingMultiplier: 0.4 },
+                      { name: 'expedia', commission: 20, bookingMultiplier: 0.2 },
+                      { name: 'agoda', commission: 16, bookingMultiplier: 0.1 }
+                    ];
+                    
+                    return channels.map((channel, index) => ({
+                      channel: channel.name,
+                      rate: baseRate + (index * 100),
+                      availability: Math.max(70 + (dateIndex % 20) + (index * 5), 20),
+                      commission: channel.commission,
+                      bookings: Math.round(15 * channel.bookingMultiplier + (dateIndex % 10)),
+                      revenue: Math.round((baseRate + (index * 100)) * 15 * channel.bookingMultiplier + (dateIndex % 10)),
+                      isActive: true,
+                      lastUpdated: new Date()
+                    }));
+                  };
+
+                  // Helper function to generate channel comparison data
+                  const generateChannelComparison = (ownChannels: any[], competitors: any[]) => {
+                    const channels = ['direct', 'booking.com', 'expedia', 'agoda'];
+                    
+                    return channels.map(channel => {
+                      const ownChannel = ownChannels.find(c => c.channel === channel);
+                      const competitorChannels = competitors.flatMap(comp => 
+                        comp.channels?.filter((c: any) => c.channel === channel) || []
+                      );
+                      
+                      if (competitorChannels.length === 0) {
+                        return {
+                          channel,
+                          ownRate: ownChannel?.rate || 0,
+                          competitorAverage: 0,
+                          competitorMin: 0,
+                          competitorMax: 0,
+                          priceAdvantage: 0,
+                          marketPosition: 'competitive' as const,
+                          activeCompetitors: 0
+                        };
+                      }
+                      
+                      const competitorRates = competitorChannels.map((c: any) => c.rate);
+                      const avgCompRate = Math.round(competitorRates.reduce((sum, rate) => sum + rate, 0) / competitorRates.length);
+                      const minCompRate = Math.min(...competitorRates);
+                      const maxCompRate = Math.max(...competitorRates);
+                      const priceAdvantage = Math.round(((ownChannel?.rate || 0) - avgCompRate) / avgCompRate * 100);
+                      
+                      let marketPosition: 'leading' | 'competitive' | 'trailing' = 'competitive';
+                      if (priceAdvantage > 10) marketPosition = 'leading';
+                      else if (priceAdvantage < -10) marketPosition = 'trailing';
+                      
+                      return {
+                        channel,
+                        ownRate: ownChannel?.rate || 0,
+                        competitorAverage: avgCompRate,
+                        competitorMin: minCompRate,
+                        competitorMax: maxCompRate,
+                        priceAdvantage,
+                        marketPosition,
+                        activeCompetitors: competitorRates.length
+                      };
+                    });
+                  };
+
+                  // Add channel data to competitors
+                  const enhancedCompetitors = (competitorData?.competitors || []).map((comp: any, index: number) => ({
+                    ...comp,
+                    channels: generateChannelData(comp.rate, comp.name, day + index)
+                  }));
+
+                  const ownChannels = generateOwnChannelData(dayData?.rate || 0, day);
+                  const channelComparison = generateChannelComparison(ownChannels, enhancedCompetitors);
+
                   // FIXED: Format competitor data properly with both indicator and full competitor details
                   const competitorTooltipData = {
                     indicator: dayData?.competitorIndicator || 'competitive',
-                    // Include the full competitor data structure from ProductData.competitorData
                     currentPrice: dayData?.rate || 0, // Add current price for comparison
                     details: {
-                      competitors: competitorData?.competitors || [],
+                      competitors: enhancedCompetitors,
                       marketPosition: competitorData?.marketPosition || 'competitive',
                       priceAdvantage: competitorData?.priceAdvantage || 0,
                       marketShare: competitorData?.marketShare || 0,
@@ -761,7 +851,9 @@ export const MonthlyCalendarView: React.FC<MonthlyCalendarViewProps> = ({
                       lowestRate: competitorData?.lowestRate || (competitorData?.competitors?.length ? 
                         Math.min(...competitorData.competitors.map((c: any) => c.rate)) : 0),
                       highestRate: competitorData?.highestRate || (competitorData?.competitors?.length ? 
-                        Math.max(...competitorData.competitors.map((c: any) => c.rate)) : 0)
+                        Math.max(...competitorData.competitors.map((c: any) => c.rate)) : 0),
+                      ownChannels,
+                      channelComparison
                     }
                   };
                   showRichTooltip('competitor', competitorTooltipData, e);
