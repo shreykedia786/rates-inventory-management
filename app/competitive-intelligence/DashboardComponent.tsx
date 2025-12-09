@@ -50,15 +50,46 @@ const formatDate = (dateStr: string) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-// Base rate calculation
+/**
+ * Base rate calculation - Realistic Goa resort pricing
+ * Peak season (Nov-Feb): Base ₹6,500 for Standard
+ * Shoulder (Mar-May, Oct): Base ₹5,000
+ * Monsoon (Jun-Sep): Base ₹3,500
+ * 
+ * Room multipliers based on typical luxury resort pricing:
+ * - Standard to Premium: 1.4-1.5x
+ * - Premium to Suite: 1.5-1.6x  
+ * - Suite to Villa: 1.4-1.5x
+ * - Villa to Penthouse: 1.5-1.7x
+ */
 const getBaseRate = (roomTypeId: string, ratePlanId: string): number => {
+  // Get current month for seasonality
+  const month = new Date().getMonth();
+  const isHighSeason = month >= 10 || month <= 1; // Nov-Feb
+  const isMonsoon = month >= 5 && month <= 8; // Jun-Sep
+  
+  // Base rate varies by season (for Standard room)
+  const seasonalBase = isHighSeason ? 6500 : isMonsoon ? 3500 : 5000;
+  
+  // Room type multipliers (realistic luxury resort pricing)
   const roomMultipliers: Record<string, number> = {
-    'std-ocean': 1.0, 'prem-ocean': 1.5, 'suite-ocean': 2.2, 'villa-beach': 3.0, 'pent-sky': 4.5
+    'std-ocean': 1.0,      // ₹6,500 in peak
+    'prem-ocean': 1.45,    // ₹9,425 in peak
+    'suite-ocean': 2.3,    // ₹14,950 in peak  
+    'villa-beach': 3.2,    // ₹20,800 in peak
+    'pent-sky': 5.0        // ₹32,500 in peak
   };
+  
+  // Rate plan discounts (industry standard)
   const planMultipliers: Record<string, number> = {
-    'bbb': 1.0, 'corp': 0.85, 'early-bird': 0.90, 'last-min': 0.95, 'group': 0.80
+    'bbb': 1.0,           // Best Available Rate (no discount)
+    'corp': 0.82,         // Corporate: 18% discount
+    'early-bird': 0.88,   // Early Bird: 12% discount (21+ days advance)
+    'last-min': 0.92,     // Last Minute: 8% discount
+    'group': 0.75         // Group: 25% discount (10+ rooms)
   };
-  return Math.round(4500 * (roomMultipliers[roomTypeId] || 1.0) * (planMultipliers[ratePlanId] || 1.0));
+  
+  return Math.round(seasonalBase * (roomMultipliers[roomTypeId] || 1.0) * (planMultipliers[ratePlanId] || 1.0));
 };
 
 // Seeded random for consistency
@@ -247,14 +278,21 @@ const generateDemandInsightsFromRealData = (
 };
 
 // Generate realistic competitive data with configurable start date
+/**
+ * Generate competitive intelligence data
+ * Competitor set: Mix of 4-star and 5-star properties in Goa
+ * Price positioning correlates with star rating and guest reviews
+ */
 const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDate: Date = new Date(), daysToShow: number = 30) => {
+  // Competitors with pricing multiplier based on star rating & positioning
+  // priceMultiplier: relative to your base rate (1.0 = same as you)
   const competitors = [
-    { id: '1', name: 'Paradise Resort', brand: 'Grand Hotels', rating: 4.2, stars: 4 },
-    { id: '2', name: 'Azure Waters Hotel', brand: 'Azure Group', rating: 3.9, stars: 4 },
-    { id: '3', name: 'Coral Bay Resort', brand: 'Coral Hospitality', rating: 4.0, stars: 4 },
-    { id: '4', name: 'Sunset Villa Resort', brand: 'Sunset Hotels', rating: 4.5, stars: 5 },
-    { id: '5', name: 'Ocean Breeze Hotel', brand: 'Ocean Group', rating: 4.3, stars: 4 },
-    { id: '6', name: 'Tropical Paradise', brand: 'Tropical Resorts', rating: 4.1, stars: 4 }
+    { id: '1', name: 'Taj Exotica Resort', brand: 'IHCL', rating: 4.7, stars: 5, priceMultiplier: 1.25 },
+    { id: '2', name: 'W Goa', brand: 'Marriott', rating: 4.5, stars: 5, priceMultiplier: 1.18 },
+    { id: '3', name: 'Grand Hyatt Goa', brand: 'Hyatt', rating: 4.4, stars: 5, priceMultiplier: 1.12 },
+    { id: '4', name: 'Novotel Goa Resort', brand: 'Accor', rating: 4.1, stars: 4, priceMultiplier: 0.92 },
+    { id: '5', name: 'Holiday Inn Resort', brand: 'IHG', rating: 4.0, stars: 4, priceMultiplier: 0.85 },
+    { id: '6', name: 'Cidade de Goa', brand: 'IHCL', rating: 4.2, stars: 4, priceMultiplier: 0.95 }
   ];
 
   // Use provided start date
@@ -275,31 +313,54 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
   });
 
   const baseRate = getBaseRate(roomTypeId, ratePlanId);
-  const channels = ['Direct Website', 'Booking.com', 'Expedia', 'Agoda', 'Hotels.com', 'Priceline', 'Trivago'];
+  
+  /**
+   * Channel configuration with realistic commissions and rate parity rules
+   * 
+   * Rate Parity: OTAs require same or lower rates than Direct (most contracts)
+   * Commission: Varies by channel type and negotiated rates
+   * 
+   * Direct Website: 0% commission (payment gateway fees ~2% excluded)
+   * Booking.com: 15-18% commission (most common in India: 17%)
+   * Expedia/Hotels.com: 15-20% (same group, ~18% typical)
+   * Agoda: 15-22% (aggressive in Asia, ~20%)
+   * MakeMyTrip: 18-25% (high in India, ~22%)
+   * Goibibo: 18-22% (Tata group, ~20%)
+   */
+  const channelConfig = [
+    { name: 'Direct Website', rateMultiplier: 1.0, commission: 0 },      // Base rate, no commission
+    { name: 'Booking.com', rateMultiplier: 1.0, commission: 17 },        // Parity, 17% comm
+    { name: 'Expedia', rateMultiplier: 1.0, commission: 18 },            // Parity, 18% comm
+    { name: 'Agoda', rateMultiplier: 0.98, commission: 20 },             // Slight undercut, 20% comm
+    { name: 'MakeMyTrip', rateMultiplier: 1.0, commission: 22 },         // Parity, 22% comm
+    { name: 'Goibibo', rateMultiplier: 0.99, commission: 20 },           // Slight undercut, 20% comm
+  ];
+  const channels = channelConfig.map(c => c.name);
   const seedBase = roomTypeId.charCodeAt(0) + ratePlanId.charCodeAt(0);
 
   const rateHistory = dates.map((date, dayIndex) => {
-    const weekendMultiplier = date.isWeekend ? 1.18 : 1.0;
+    const weekendMultiplier = date.isWeekend ? 1.20 : 1.0; // 20% weekend premium
     const demandFactor = 0.7 + (Math.sin(dayIndex / 5) * 0.3);
     
-    // User rates across channels
-    const userChannelRates = channels.map((channel, chIndex) => {
-      const channelMultiplier = channel === 'Direct Website' ? 0.98 : 
-                               channel === 'Booking.com' ? 1.05 :
-                               channel === 'Expedia' ? 1.08 : 1.02 + (chIndex * 0.01);
+    // User rates across channels - respecting rate parity
+    const userChannelRates = channelConfig.map((config, chIndex) => {
+      // Small random variation to simulate real-world slight differences
+      const microVariation = 0.995 + (seededRandom(seedBase + dayIndex + chIndex) * 0.01);
       return {
-        channel,
-        rate: Math.round(baseRate * channelMultiplier * weekendMultiplier),
-        commission: channel === 'Direct Website' ? 0 : 15 + (chIndex % 5)
+        channel: config.name,
+        rate: Math.round(baseRate * config.rateMultiplier * weekendMultiplier * microVariation),
+        commission: config.commission
       };
     });
     
-    // Competitor rates - now with per-channel rates and BAR identification
-    // Each competitor has a different "preferred" channel where they offer lowest rates
+    // Competitor rates - using realistic price multipliers based on positioning
+    // 5-star competitors are more expensive, 4-star are competitive/cheaper
     const competitorRates = competitors.map((comp, compIndex) => {
-      const compBaseRate = baseRate * (0.88 + (compIndex * 0.06));
+      // Use the competitor's price multiplier (based on stars/brand)
+      const compBaseRate = baseRate * (comp.priceMultiplier || 1.0);
       const seed = seedBase + dayIndex * 100 + compIndex * 10;
-      const variation = 0.92 + (seededRandom(seed) * 0.16);
+      // Daily variation: ±5% for realistic rate shopping data
+      const variation = 0.95 + (seededRandom(seed) * 0.10);
       
       // Each competitor has a different channel strategy based on their index
       // This creates variety - some are cheapest on Direct, others on Booking, Agoda, etc.
@@ -359,8 +420,13 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
       priceGap: userRate - avgCompetitorRate,
       priceGapPercent: Math.round(((userRate - avgCompetitorRate) / avgCompetitorRate) * 100),
       userOccupancy,
-      marketPosition: userRate < avgCompetitorRate * 0.97 ? 'underpriced' : 
-                     userRate > avgCompetitorRate * 1.03 ? 'premium' : 'competitive'
+      // Market position based on percentage gap (consistent with opportunity detection)
+      marketPosition: (() => {
+        const gapPercent = Math.round(((userRate - avgCompetitorRate) / avgCompetitorRate) * 100);
+        if (gapPercent < -3) return 'underpriced';  // More than 3% below market
+        if (gapPercent > 3) return 'premium';        // More than 3% above market
+        return 'competitive';                         // Within ±3% of market
+      })()
     };
   });
 
@@ -370,39 +436,85 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
   const avgCompetitorRate = Math.round(rateHistory.reduce((sum, d) => sum + d.avgCompetitorRate, 0) / rateHistory.length);
   const avgUserOccupancy = Math.round(rateHistory.reduce((sum, d) => sum + d.userOccupancy, 0) / rateHistory.length);
   
-  // Find opportunities
-  const underpricedDays = rateHistory.filter(d => d.marketPosition === 'underpriced');
-  const premiumDays = rateHistory.filter(d => d.marketPosition === 'premium');
+  // Find opportunities - using percentage-based detection
+  // Underpriced: Your rate is below market (opportunity to increase)
+  // Premium: Your rate is above market (monitor demand)
+  const underpricedDays = rateHistory.filter(d => d.priceGapPercent < -2); // More than 2% below market
+  const premiumDays = rateHistory.filter(d => d.priceGapPercent > 3); // More than 3% above market
   const weekendOpportunities = rateHistory.filter(d => d.isWeekend && d.priceGapPercent < 5);
   
-  // Revenue opportunity calculation
-  const potentialIncrease = underpricedDays.reduce((sum, d) => sum + Math.abs(d.priceGap) * 0.6, 0);
+  /**
+   * Revenue opportunity calculation - Multi-factor approach
+   * 
+   * Factors considered:
+   * 1. Days where you're below market average
+   * 2. High demand days (from demand intelligence) where rates can be pushed
+   * 3. Weekend premium opportunities
+   * 
+   * Assumptions:
+   * - 120 rooms in inventory
+   * - Occupancy varies by demand
+   */
+  const avgRooms = 120;
+  const roomNightsPerDay = Math.round(avgRooms * (avgUserOccupancy / 100));
+  
+  // Factor 1: Below-market opportunities
+  const belowMarketOpportunity = rateHistory
+    .filter(d => d.priceGap < 0) // Any day below market
+    .reduce((sum, d) => {
+      const gapAmount = Math.abs(d.priceGap);
+      return sum + (gapAmount * 0.5 * roomNightsPerDay * 0.03); // 3% of room nights at 50% of gap
+    }, 0);
+  
+  // Factor 2: High demand opportunities (from demand intelligence)
+  const demandIntelForRevenue = getDemandIntelligence(today, daysToShow);
+  const highDemandOpportunity = demandIntelForRevenue.forecasts
+    .filter(f => f.overallScore >= 70)
+    .reduce((sum, f) => {
+      // Can push rates 10-15% on high demand days
+      const demandPremium = avgUserRate * (f.suggestedPriceAdjustment / 100) * 0.7;
+      return sum + (demandPremium * roomNightsPerDay * 0.02); // 2% of room nights
+    }, 0);
+  
+  // Factor 3: Weekend premium not fully captured
+  const weekendPremiumOpportunity = rateHistory
+    .filter(d => d.isWeekend && d.priceGapPercent < 8) // Not maximizing weekend premium
+    .reduce((sum, d) => {
+      return sum + (avgUserRate * 0.05 * roomNightsPerDay * 0.02); // 5% additional × 2% of nights
+    }, 0);
+  
+  // Total monthly potential (combine all factors)
+  const potentialIncrease = Math.round(
+    belowMarketOpportunity + highDemandOpportunity + weekendPremiumOpportunity
+  );
   
   // Channel performance - Focus on Rate Parity (no fake revenue)
   // Compare each channel's rate against your direct/base rate and market average
   const directRate = Math.round(rateHistory.reduce((sum, d) => sum + d.userChannelRates[0].rate, 0) / rateHistory.length);
   
-  const channelPerformance = channels.map((channel, idx) => {
+  const channelPerformance = channelConfig.map((config, idx) => {
     const avgRate = Math.round(rateHistory.reduce((sum, d) => sum + d.userChannelRates[idx].rate, 0) / rateHistory.length);
-    const commission = channel === 'Direct Website' ? 0 : 15 + (idx % 5);
+    const commission = config.commission;
     
     // Calculate parity against your direct rate (not competitor rate)
     // Positive gap = channel priced higher than direct = good (Win)
     // Negative gap = channel undercutting direct = bad (Loss)
     const parityGapVsDirect = avgRate - directRate;
     const parityGapVsMarket = avgRate - avgCompetitorRate;
+    const parityGapPercent = Math.round((parityGapVsDirect / directRate) * 100);
     
     // Net effective rate after commission
     const netEffectiveRate = Math.round(avgRate * (1 - commission / 100));
     
-    // Parity score: How well is this channel aligned with your strategy?
-    // 100 = perfect parity with direct, lower = undercutting
-    const parityScore = Math.max(0, Math.min(100, 100 - Math.abs(parityGapVsDirect) / 50));
+    // Parity score: Percentage-based for all room types
+    // 100 = perfect parity, -1 point per 0.5% deviation
+    const parityScore = Math.max(0, Math.min(100, 100 - Math.abs(parityGapPercent) * 2));
     
-    // Determine status based on gap vs direct rate
+    // Determine status based on gap vs direct rate (using percentage threshold)
+    // Industry standard: 2% variance is acceptable for "parity"
     let parityStatus: 'win' | 'meet' | 'loss';
-    if (Math.abs(parityGapVsDirect) < 100) {
-      parityStatus = 'meet'; // Within ₹100 of direct = parity maintained
+    if (Math.abs(parityGapPercent) <= 2) {
+      parityStatus = 'meet'; // Within 2% of direct = parity maintained
     } else if (parityGapVsDirect > 0) {
       parityStatus = 'win'; // Channel priced higher = direct is competitive
     } else {
@@ -410,12 +522,13 @@ const generateCompetitiveData = (roomTypeId: string, ratePlanId: string, startDa
     }
     
     return {
-      name: channel,
+      name: config.name,
       rate: avgRate,
       directRate,
       commission,
       netEffectiveRate,
       parityGapVsDirect,
+      parityGapPercent,
       parityGapVsMarket,
       parityScore,
       parityStatus,
@@ -1911,13 +2024,13 @@ const ChannelRow = ({ channel, index }: { channel: any; index: number }) => {
           <span className="text-white font-medium">{formatCurrency(channel.rate)}</span>
           {!isDirect && (
             <>
-              <span className={channel.parityGapVsDirect > 0 ? 'text-emerald-400' : channel.parityGapVsDirect < 0 ? 'text-rose-400' : 'text-slate-400'}>
-                {channel.parityGapVsDirect > 0 ? '+' : ''}{formatCurrency(channel.parityGapVsDirect)} vs direct
+              <span className={channel.parityGapPercent > 0 ? 'text-emerald-400' : channel.parityGapPercent < 0 ? 'text-rose-400' : 'text-slate-400'}>
+                {channel.parityGapPercent > 0 ? '+' : ''}{channel.parityGapPercent}% vs direct
               </span>
               <span>{channel.commission}% comm</span>
             </>
           )}
-          {isDirect && <span className="text-emerald-400">0% commission</span>}
+          {isDirect && <span className="text-emerald-400">0% commission • Best rate guarantee</span>}
         </div>
       </div>
       
